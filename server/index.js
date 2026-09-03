@@ -14,6 +14,24 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me-please';
 
 const NAMES = { patient: PATIENT_NAME, caregiver: CAREGIVER_NAME };
 
+const REMINDER_MESSAGES = [
+  (caregiver) => `💕 ${caregiver} is thinking of you — time for your meds!`,
+  () => '🌸 Little nudge: meds time! You’ve got this.',
+  () => '💊✨ Reminder time, gorgeous! Don’t forget your meds.',
+  (caregiver) => `🎀 ${caregiver} sent you a cuddly reminder: meds time!`,
+];
+
+const CONFIRMATION_MESSAGES = [
+  (name) => `🌟 ${name} just earned a gold star for taking their meds!`,
+  (name) => `💖 ${name} took their meds like a total champ!`,
+  (name) => `✨ Yay! ${name} just checked off their meds.`,
+  (name) => `🎀 ${name} did the thing! Meds taken, high five!`,
+];
+
+function pickRandom(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
@@ -161,7 +179,7 @@ app.post('/api/doses/toggle', requireAuth, (req, res) => {
     logEvent('dose_taken', `${actor} marked "${med.name}" as taken`);
     if (req.session.role === 'patient') {
       push.sendToRole('caregiver', {
-        title: `${PATIENT_NAME} took their meds ✓`,
+        title: pickRandom(CONFIRMATION_MESSAGES)(PATIENT_NAME),
         body: `${med.name}${med.dosage ? ' (' + med.dosage + ')' : ''} marked as taken.`,
         tag: 'confirmation',
       });
@@ -195,7 +213,7 @@ app.post('/api/doses/mark-all-today', requireAuth, (req, res) => {
   if (takenNow.length) {
     logEvent('dose_taken', `${NAMES[req.session.role]} confirmed meds taken: ${takenNow.join(', ')}`);
     push.sendToRole('caregiver', {
-      title: `${PATIENT_NAME} took their meds ✓`,
+      title: pickRandom(CONFIRMATION_MESSAGES)(PATIENT_NAME),
       body: takenNow.join(', '),
       tag: 'confirmation',
     });
@@ -206,13 +224,45 @@ app.post('/api/doses/mark-all-today', requireAuth, (req, res) => {
 // ---- Reminder ping ----
 app.post('/api/remind', requireAuth, requireCaregiver, async (req, res) => {
   const result = await push.sendToRole('patient', {
-    title: 'Medication reminder 💊',
-    body: `${CAREGIVER_NAME} is checking in — time to take your meds!`,
+    title: pickRandom(REMINDER_MESSAGES)(CAREGIVER_NAME),
+    body: "Tap below when you've taken it — you'll earn a gold star ⭐",
     tag: 'reminder',
     actions: [{ action: 'taken', title: "I took it ✓" }],
   });
   logEvent('reminder_sent', `${CAREGIVER_NAME} sent a reminder ping`);
   res.json(result);
+});
+
+// ---- Stars & streak ----
+function isDayComplete(dateStr, medIds) {
+  if (!medIds.length) return false;
+  const placeholders = medIds.map(() => '?').join(',');
+  const row = db
+    .prepare(`SELECT COUNT(*) AS c FROM dose_logs WHERE date = ? AND taken = 1 AND medication_id IN (${placeholders})`)
+    .get(dateStr, ...medIds);
+  return row.c >= medIds.length;
+}
+
+app.get('/api/stats', requireAuth, (req, res) => {
+  const totalStars = db.prepare('SELECT COUNT(*) AS c FROM dose_logs WHERE taken = 1').get().c;
+
+  const medIds = db.prepare('SELECT id FROM medications WHERE active = 1').all().map((m) => m.id);
+  let streak = 0;
+  const cursor = new Date();
+  let isToday = true;
+  for (let i = 0; i < 3650; i++) {
+    const dateStr = cursor.toISOString().slice(0, 10);
+    const complete = isDayComplete(dateStr, medIds);
+    if (complete) {
+      streak += 1;
+    } else if (!isToday) {
+      break;
+    }
+    isToday = false;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  res.json({ totalStars, streak });
 });
 
 // ---- Activity log ----

@@ -3,22 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Meds Reminder</title>
-  <meta name="theme-color" content="#0d9488" />
+  <title>Meds & Stars</title>
+  <meta name="theme-color" content="#ec4899" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
   <!-- Login screen -->
   <section id="login-view" class="view">
     <div class="login-card">
-      <h1>💊 Meds Reminder</h1>
-      <p class="subtitle">Who's checking in?</p>
+      <h1>💖 Meds &amp; Stars</h1>
+      <p class="subtitle">Who's checking in? ✨</p>
       <div class="role-toggle">
-        <button type="button" class="role-btn active" data-role="patient">I'm taking meds</button>
-        <button type="button" class="role-btn" data-role="caregiver">I'm checking in</button>
+        <button type="button" class="role-btn active" data-role="patient">I'm taking meds 🌸</button>
+        <button type="button" class="role-btn" data-role="caregiver">I'm checking in 💌</button>
       </div>
       <form id="login-form">
         <input type="password" inputmode="numeric" id="pin-input" placeholder="Enter PIN" autocomplete="current-password" required />
@@ -32,19 +35,30 @@
   <section id="app-view" class="view" hidden>
     <header class="app-header">
       <div>
-        <h1>💊 Meds Reminder</h1>
+        <h1>💖 Meds &amp; Stars</h1>
         <p id="whoami" class="subtitle"></p>
       </div>
       <button id="logout-btn" class="ghost-btn">Log out</button>
     </header>
 
+    <div class="stats-banner">
+      <div class="stat-pill">
+        <span class="stat-num" id="stat-stars">⭐ 0</span>
+        <span class="stat-label">gold stars</span>
+      </div>
+      <div class="stat-pill streak">
+        <span class="stat-num" id="stat-streak">🔥 0</span>
+        <span class="stat-label">day streak</span>
+      </div>
+    </div>
+
     <div id="caregiver-panel" class="card" hidden>
       <div class="remind-row">
         <div>
-          <strong id="remind-heading">Send a check-in</strong>
-          <p class="muted">Sends a push notification with an "I took it" button.</p>
+          <strong id="remind-heading">Send a sweet reminder</strong>
+          <p class="muted">Sends a cute push notification with an "I took it" button.</p>
         </div>
-        <button id="remind-btn" class="primary-btn">🔔 Ping now</button>
+        <button id="remind-btn" class="primary-btn">💌 Ping now</button>
       </div>
       <p id="remind-status" class="muted" hidden></p>
     </div>

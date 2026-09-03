@@ -13,6 +13,16 @@
     doses: {}, // `${medId}:${date}` -> taken (0/1)
   };
 
+  const CUTE_TAKEN_MESSAGES = [
+    'Yay! Gold star for you! ⭐',
+    "So proud of you! 💖",
+    "You're a superstar! ✨",
+    'High five! 🙌 Meds taken!',
+    'Look at you being amazing! 💗',
+    'Sparkle status: activated ✨',
+    'Way to go, cutie! 🌸',
+  ];
+
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
@@ -39,6 +49,14 @@
       throw new Error(body.error || `Request failed (${res.status})`);
     }
     return res.status === 204 ? null : res.json();
+  }
+
+  function starBurst(anchorEl) {
+    const el = document.createElement('span');
+    el.className = 'star-burst';
+    el.textContent = '⭐';
+    anchorEl.appendChild(el);
+    setTimeout(() => el.remove(), 950);
   }
 
   function toast(msg) {
@@ -109,11 +127,21 @@
     state.name = session.name;
     state.otherName = session.otherName;
     showApp();
-    await Promise.all([loadMedications(), loadDosesForVisibleMonth()]);
+    await Promise.all([loadMedications(), loadDosesForVisibleMonth(), refreshStats()]);
     renderCalendar();
     renderMedicationList();
     selectDay(state.selectedDate);
     setupPush().catch((err) => console.warn('Push setup skipped:', err.message));
+  }
+
+  async function refreshStats() {
+    try {
+      const stats = await api('/api/stats');
+      $('#stat-stars').textContent = `⭐ ${stats.totalStars}`;
+      $('#stat-streak').textContent = `🔥 ${stats.streak}`;
+    } catch (err) {
+      // stats are a nice-to-have, never block the app on them
+    }
   }
 
   // ---------- Tabs ----------
@@ -168,7 +196,7 @@
     await loadMedications();
     renderMedicationList();
     renderDayDetail();
-    toast('Medication added');
+    toast('Medication added 🌸');
   });
 
   // ---------- Calendar ----------
@@ -228,11 +256,11 @@
       if (dateStr === state.selectedDate) el.classList.add('selected');
 
       const status = dayStatus(dateStr);
-      let dot = '';
-      if (status === 'full') dot = '<span class="cal-dot"></span>';
-      else if (status === 'partial') dot = '<span class="cal-dot partial"></span>';
+      let marker = '';
+      if (status === 'full') marker = '<span class="cal-star">⭐</span>';
+      else if (status === 'partial') marker = '<span class="cal-dot"></span>';
 
-      el.innerHTML = `<span>${day}</span>${dot}`;
+      el.innerHTML = `<span>${day}</span>${marker}`;
       el.addEventListener('click', () => selectDay(dateStr));
       grid.appendChild(el);
     }
@@ -281,6 +309,7 @@
       const key = `${med.id}:${state.selectedDate}`;
       const taken = Boolean(state.doses[key]);
       const li = document.createElement('li');
+      li.dataset.medId = med.id;
       if (taken) li.classList.add('taken');
       const meta = [med.dosage, med.time_of_day].filter(Boolean).join(' · ');
       li.innerHTML = `
@@ -296,6 +325,12 @@
           state.doses[key] = result.taken ? 1 : 0;
           renderDayDetail();
           renderCalendar();
+          refreshStats();
+          if (result.taken) {
+            const freshLi = $(`#day-med-list li[data-med-id="${med.id}"]`);
+            if (freshLi) starBurst(freshLi);
+            toast(CUTE_TAKEN_MESSAGES[Math.floor(Math.random() * CUTE_TAKEN_MESSAGES.length)]);
+          }
         } catch (err) {
           toast(err.message);
         }
@@ -316,7 +351,7 @@
         statusEl.textContent = 'Push notifications are not configured yet on the server.';
       } else if (result.sent > 0) {
         statusEl.textContent = `Reminder sent (${result.sent} device${result.sent > 1 ? 's' : ''}).`;
-        toast('Reminder sent 🔔');
+        toast('Sweet reminder sent 💌');
       } else {
         statusEl.textContent = `${state.otherName} hasn't enabled notifications on their device yet.`;
       }
