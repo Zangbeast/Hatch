@@ -1,0 +1,249 @@
+:root {
+  --teal: #0d9488;
+  --teal-dark: #0f766e;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --danger: #dc2626;
+  --taken: #16a34a;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.view[hidden] { display: none; }
+
+h1 { font-size: 1.4rem; margin: 0; }
+h2 { font-size: 1.1rem; margin: 0; }
+h3 { margin: 0 0 0.75rem; font-size: 1rem; }
+.subtitle { color: var(--muted); margin: 0.2rem 0 0; font-size: 0.9rem; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+
+/* Login */
+#login-view {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.login-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 2rem 1.75rem;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  text-align: center;
+}
+.role-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.25rem 0 1rem;
+}
+.role-btn {
+  flex: 1;
+  padding: 0.6rem 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.role-btn.active {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: white;
+}
+#login-form { display: flex; flex-direction: column; gap: 0.75rem; }
+#pin-input {
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 1.1rem;
+  text-align: center;
+  letter-spacing: 0.3rem;
+}
+.error { color: var(--danger); font-size: 0.85rem; }
+
+/* App shell */
+#app-view { max-width: 640px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.remind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+button { font-family: inherit; }
+.primary-btn {
+  background: var(--teal);
+  color: white;
+  border: none;
+  padding: 0.7rem 1.1rem;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.primary-btn:active { background: var(--teal-dark); }
+.ghost-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink);
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+.tab-btn {
+  flex: 1;
+  padding: 0.55rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.tab-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
+.tab-panel[hidden] { display: none; }
+
+/* Calendar */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.cal-dow {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding-bottom: 4px;
+}
+.cal-day {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: var(--bg);
+  cursor: pointer;
+  font-size: 0.85rem;
+  position: relative;
+}
+.cal-day.empty { visibility: hidden; cursor: default; }
+.cal-day.selected { outline: 2px solid var(--teal); }
+.cal-day.today { font-weight: 700; color: var(--teal-dark); }
+.cal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--taken);
+}
+.cal-dot.partial { background: #eab308; }
+.cal-dot.missed { background: var(--danger); }
+
+/* Day detail / med checklist */
+.med-checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.med-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.med-checklist li.taken { background: #f0fdf4; border-color: #bbf7d0; }
+.med-checklist input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--teal); flex-shrink: 0; }
+.med-name { font-weight: 600; }
+.med-meta { color: var(--muted); font-size: 0.8rem; }
+
+/* Medication management */
+.med-form { display: flex; flex-direction: column; gap: 0.6rem; }
+.med-form input {
+  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+.time-label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; color: var(--muted); }
+.med-manage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.med-manage-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+/* Activity */
+.activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.activity-list li {
+  padding: 0.5rem 0.6rem;
+  border-left: 3px solid var(--teal);
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.activity-list time { display: block; color: var(--muted); font-size: 0.75rem; margin-top: 2px; }
+
+.toast {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+  z-index: 50;
+}
+.toast[hidden] { display: none; }

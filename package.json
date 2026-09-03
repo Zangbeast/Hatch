@@ -1,0 +1,20 @@
+{
+  "name": "meds-reminder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A small two-person medication reminder app: a calendar to check off doses, a ping button for reminders, and a confirmation notification when meds are taken.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "generate-vapid-keys": "node server/generate-vapid-keys.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "node-cron": "^3.0.3",
+    "web-push": "^3.6.7"
+  }
+}

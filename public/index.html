@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Meds Reminder</title>
+  <meta name="theme-color" content="#0d9488" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- Login screen -->
+  <section id="login-view" class="view">
+    <div class="login-card">
+      <h1>💊 Meds Reminder</h1>
+      <p class="subtitle">Who's checking in?</p>
+      <div class="role-toggle">
+        <button type="button" class="role-btn active" data-role="patient">I'm taking meds</button>
+        <button type="button" class="role-btn" data-role="caregiver">I'm checking in</button>
+      </div>
+      <form id="login-form">
+        <input type="password" inputmode="numeric" id="pin-input" placeholder="Enter PIN" autocomplete="current-password" required />
+        <button type="submit">Continue</button>
+      </form>
+      <p id="login-error" class="error" hidden></p>
+    </div>
+  </section>
+
+  <!-- App -->
+  <section id="app-view" class="view" hidden>
+    <header class="app-header">
+      <div>
+        <h1>💊 Meds Reminder</h1>
+        <p id="whoami" class="subtitle"></p>
+      </div>
+      <button id="logout-btn" class="ghost-btn">Log out</button>
+    </header>
+
+    <div id="caregiver-panel" class="card" hidden>
+      <div class="remind-row">
+        <div>
+          <strong id="remind-heading">Send a check-in</strong>
+          <p class="muted">Sends a push notification with an "I took it" button.</p>
+        </div>
+        <button id="remind-btn" class="primary-btn">🔔 Ping now</button>
+      </div>
+      <p id="remind-status" class="muted" hidden></p>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="calendar">Calendar</button>
+      <button class="tab-btn" data-tab="medications">Medications</button>
+      <button class="tab-btn" data-tab="activity">Activity</button>
+    </nav>
+
+    <!-- Calendar tab -->
+    <div id="tab-calendar" class="tab-panel">
+      <div class="card">
+        <div class="calendar-header">
+          <button id="prev-month" class="ghost-btn" aria-label="Previous month">‹</button>
+          <h2 id="month-label"></h2>
+          <button id="next-month" class="ghost-btn" aria-label="Next month">›</button>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+      </div>
+
+      <div class="card" id="day-detail">
+        <h3 id="day-detail-title">Today</h3>
+        <ul id="day-med-list" class="med-checklist"></ul>
+        <p id="day-empty" class="muted" hidden>No medications added yet — add one in the Medications tab.</p>
+      </div>
+    </div>
+
+    <!-- Medications tab -->
+    <div id="tab-medications" class="tab-panel" hidden>
+      <div class="card">
+        <h3>Add a medication</h3>
+        <form id="med-form" class="med-form">
+          <input type="text" id="med-name" placeholder="Name (e.g. Lisinopril)" required />
+          <input type="text" id="med-dosage" placeholder="Dosage (e.g. 10mg)" />
+          <label class="time-label">
+            Reminder time
+            <input type="time" id="med-time" />
+          </label>
+          <button type="submit" class="primary-btn">Add medication</button>
+        </form>
+      </div>
+      <div class="card">
+        <h3>Current medications</h3>
+        <ul id="med-list" class="med-manage-list"></ul>
+      </div>
+    </div>
+
+    <!-- Activity tab -->
+    <div id="tab-activity" class="tab-panel" hidden>
+      <div class="card">
+        <h3>Recent activity</h3>
+        <ul id="activity-list" class="activity-list"></ul>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
