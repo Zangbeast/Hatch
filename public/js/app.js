@@ -536,12 +536,34 @@
     ]);
   }
 
+  // True when an existing subscription was created with a *different* server
+  // key than the one currently in use. If the server's VAPID key ever
+  // changes, old subscriptions stop working silently, so we must drop and
+  // recreate them rather than keep re-registering a dead one.
+  function subscriptionMatchesKey(subscription, expectedKeyBytes) {
+    const existing = subscription.options && subscription.options.applicationServerKey;
+    if (!existing) return false;
+    const a = new Uint8Array(existing);
+    if (a.length !== expectedKeyBytes.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== expectedKeyBytes[i]) return false;
+    return true;
+  }
+
   async function subscribeToPush() {
     const { publicKey } = await api('/api/push/vapid-public-key');
     if (!publicKey) return;
+    const keyBytes = urlBase64ToUint8Array(publicKey);
     const registration = await navigator.serviceWorker.register('/js/sw.js');
     await waitForActiveServiceWorker(registration);
+
     let subscription = await registration.pushManager.getSubscription();
+    // If a subscription exists but was made with an older server key, it's
+    // dead — unsubscribe so we can make a fresh one that actually works.
+    if (subscription && !subscriptionMatchesKey(subscription, keyBytes)) {
+      try { await subscription.unsubscribe(); } catch (e) { /* ignore */ }
+      subscription = null;
+    }
+
     if (!subscription) {
       // The browser's own subscribe() call reaches out to its push service
       // (Apple's/Google's) — on a restrictive network that can hang rather
@@ -549,7 +571,7 @@
       subscription = await withTimeout(
         registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
+          applicationServerKey: keyBytes,
         }),
         15000,
         'Turning on notifications is taking too long — check your connection and try again.'

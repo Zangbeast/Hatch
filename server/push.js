@@ -43,13 +43,17 @@ async function sendToRole(role, payload) {
   await Promise.all(
     subs.map(async (sub) => {
       try {
-        await webpush.sendNotification(sub.subscription_json, JSON.stringify(payload));
+        // subscription_json is stored as TEXT — web-push needs the parsed
+        // object (with .endpoint and .keys), not the raw string.
+        const subscription = JSON.parse(sub.subscription_json);
+        await webpush.sendNotification(subscription, JSON.stringify(payload));
         sent += 1;
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
+          // The push service says this subscription is gone — drop it.
           db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(sub.id);
         } else {
-          console.error('[push] failed to send to', role, err.message);
+          console.error('[push] failed to send to', role, err.statusCode || '', err.message);
         }
       }
     })

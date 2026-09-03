@@ -11,3 +11,16 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
+      # Fixed Web Push (VAPID) keys. These MUST stay stable across restarts,
+      # otherwise every phone's existing notification subscription is
+      # invalidated and notifications silently stop. Render keeps env vars
+      # across redeploys and sleep/wake (unlike the disk), so pinning them
+      # here is what makes push reliable on the free plan without anyone
+      # having to paste anything. The public key is not secret; the private
+      # key only lets someone send push messages to devices whose
+      # subscription endpoints they already have (they don't), so for a
+      # personal two-person app the exposure is negligible.
+      - key: VAPID_PUBLIC_KEY
+        value: BOsj5FMB1tTzZloPYrQ9l9lniJB9uStcmymrqUw1VLia7effufInN1pay8sB8Ph0dYKykmoLTNM9Hz63Wo8-1XA
+      - key: VAPID_PRIVATE_KEY
+        value: Bg4isNa7uDaImFirNSkvBOqQ9Ejm6IvnLrPD0faQ_Cw
