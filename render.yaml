@@ -24,3 +24,13 @@ services:
         value: BOsj5FMB1tTzZloPYrQ9l9lniJB9uStcmymrqUw1VLia7effufInN1pay8sB8Ph0dYKykmoLTNM9Hz63Wo8-1XA
       - key: VAPID_PRIVATE_KEY
         value: Bg4isNa7uDaImFirNSkvBOqQ9Ejm6IvnLrPD0faQ_Cw
+      # Turso database, so the calendar / names / stars survive restarts.
+      # These are the two values you paste from Turso (see the README's
+      # "Make your data stick" section). Leaving them blank makes the app
+      # fall back to a temporary file that resets on every restart, so set
+      # them for real use. sync:false = Render prompts for them in the
+      # dashboard instead of reading them from this file.
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false

@@ -17,20 +17,20 @@ function currentHHMM() {
 cron.schedule('* * * * *', async () => {
   const hhmm = currentHHMM();
   const date = todayStr();
-  const dueMeds = db
+  const dueMeds = await db
     .prepare('SELECT * FROM medications WHERE active = 1 AND time_of_day = ?')
     .all(hhmm);
 
   for (const med of dueMeds) {
-    const dose = db.prepare('SELECT * FROM dose_logs WHERE medication_id = ? AND date = ?').get(med.id, date);
+    const dose = await db.prepare('SELECT * FROM dose_logs WHERE medication_id = ? AND date = ?').get(med.id, date);
     if (dose && dose.taken) continue;
     await push.sendToRole('patient', {
       title: 'Medication reminder 💊',
       body: `Time to take ${med.name}${med.dosage ? ' (' + med.dosage + ')' : ''}. Open the app to check in.`,
       tag: 'reminder',
     });
-    db.setSetting('pending_reminder_at', new Date().toISOString());
-    db.prepare('INSERT INTO events (type, message) VALUES (?, ?)').run(
+    await db.setSetting('pending_reminder_at', new Date().toISOString());
+    await db.prepare('INSERT INTO events (type, message) VALUES (?, ?)').run(
       'auto_reminder_sent',
       `Automatic reminder sent for "${med.name}"`
     );

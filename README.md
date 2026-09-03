@@ -47,7 +47,26 @@ iPhones only allow notifications from web apps that have been added to the Home 
 A couple of things worth knowing:
 - Anyone with your app's link can open it and pick either role — there's no password gate. Just don't post the link publicly; treat it like you would a shared photo album link.
 - The free Render plan "falls asleep" after a while if unused, so the first open after a quiet stretch can take ~30 seconds to wake up. That's normal — nothing is lost.
-- **The free Render plan has no permanent storage.** Every time the app gets redeployed — which happens automatically on any code update, not just a manual click — it starts from a clean slate: medications, calendar history, gold stars/streak, and everyone's "enable notifications" setup are all wiped and need to be redone. Day-to-day use (just opening the app, it sleeping and waking back up) does **not** trigger this — only an actual redeploy does. If that becomes annoying, the fix is upgrading Render to a paid instance with a persistent disk (a few dollars a month) — ask and it can be set up.
+- **Do the "Make your data stick" step below**, or the calendar, names, and stars reset every time the app restarts.
+
+## Make your data stick (free, one-time setup)
+
+The free Render plan gives the app a blank slate every time it restarts, so on its own it forgets your medications, names, and history. To fix that for free, point it at a free [Turso](https://turso.tech) database, which stays put no matter what Render does. You do this once:
+
+**1. Make a free Turso account** at [turso.tech](https://turso.tech) — sign in with GitHub.
+
+**2. Create a database.** After signing in, create a new database (any name, e.g. `meds`). Pick whatever region is closest to you.
+
+**3. Grab two values from that database's page:**
+- its **URL** (looks like `libsql://meds-yourname.turso.io`)
+- an **auth token** (there's a "Create Token" button — copy the long string it gives you)
+
+**4. Put them into Render:**
+- Go to your app on [Render](https://dashboard.render.com) → **Environment** (left sidebar)
+- You'll see `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` waiting to be filled in — paste the URL into the first and the token into the second, and save.
+- Render restarts the app automatically. From now on, nothing resets.
+
+That's the only copy-paste in the whole setup, and it's a one-time thing. If you'd rather not do it at all, the app still runs — it just won't remember anything after a restart.
 
 ## Running it on your own computer (for developers)
 
@@ -56,7 +75,7 @@ npm install
 npm start
 ```
 
-Visit `http://localhost:3000`. See `.env.example` for optional settings (custom session secret, starting names, etc.) — none of them are required to try it out.
+Visit `http://localhost:3000`. With no `TURSO_*` env vars set it uses a local `data.db` file, so it works offline with zero setup. See `.env.example` for optional settings — none are required to try it out.
 
 ## Project layout
 
@@ -64,7 +83,7 @@ Visit `http://localhost:3000`. See `.env.example` for optional settings (custom 
 render.yaml      One-click Render deployment config
 server/
   index.js      Express app: role picker, medications, doses, push, settings, activity log
-  db.js         SQLite schema + settings key/value store
+  db.js         libSQL/SQLite access — Turso in production, a local file otherwise
   push.js       Web Push (VAPID) sending — auto-generates its own keys on first run
   scheduler.js  Optional per-minute cron check for auto-reminders
 public/

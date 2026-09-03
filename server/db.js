@@ -1,11 +1,17 @@
 const path = require('path');
-const Database = require('better-sqlite3');
+const { createClient } = require('@libsql/client');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'data.db');
-const db = new Database(DB_PATH);
-db.pragma('journal_mode = WAL');
+// In production (Render) this points at a Turso database via env vars, so the
+// data survives restarts. With no env vars set it falls back to a local file,
+// which is what `npm start` on your own computer uses.
+const url =
+  process.env.TURSO_DATABASE_URL ||
+  'file:' + (process.env.DB_PATH || path.join(__dirname, '..', 'data.db'));
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-db.exec(`
+const client = createClient(authToken ? { url, authToken } : { url });
+
+const SCHEMA = `
   CREATE TABLE IF NOT EXISTS medications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -43,19 +49,53 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
-`);
+`;
 
-function getSetting(key, fallback) {
-  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+async function init() {
+  await client.executeMultiple(SCHEMA);
+}
+
+// Named args come through as a single plain object (e.g. { role, endpoint,
+// json } matching @name placeholders); everything else is positional.
+function normalizeArgs(args) {
+  if (args.length === 1 && args[0] && typeof args[0] === 'object' && !Array.isArray(args[0])) {
+    return args[0];
+  }
+  return args;
+}
+
+// A thin async stand-in for better-sqlite3's prepare().get/all/run so the rest
+// of the app reads almost the same — just with `await` in front of each call.
+function prepare(sql) {
+  return {
+    async get(...args) {
+      const result = await client.execute({ sql, args: normalizeArgs(args) });
+      return result.rows[0];
+    },
+    async all(...args) {
+      const result = await client.execute({ sql, args: normalizeArgs(args) });
+      return result.rows;
+    },
+    async run(...args) {
+      const result = await client.execute({ sql, args: normalizeArgs(args) });
+      return {
+        lastInsertRowid: result.lastInsertRowid != null ? Number(result.lastInsertRowid) : undefined,
+        changes: result.rowsAffected,
+      };
+    },
+  };
+}
+
+async function getSetting(key, fallback) {
+  const row = (await client.execute({ sql: 'SELECT value FROM settings WHERE key = ?', args: [key] })).rows[0];
   return row ? row.value : fallback;
 }
 
-function setSetting(key, value) {
-  db.prepare(
-    'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'
-  ).run(key, value);
+async function setSetting(key, value) {
+  await client.execute({
+    sql: 'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+    args: [key, value],
+  });
 }
 
-module.exports = db;
-module.exports.getSetting = getSetting;
-module.exports.setSetting = setSetting;
+module.exports = { prepare, init, getSetting, setSetting, client };

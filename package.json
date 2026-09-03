@@ -9,7 +9,7 @@
     "generate-vapid-keys": "node server/generate-vapid-keys.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.3.0",
+    "@libsql/client": "^0.18.0",
     "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

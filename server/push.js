@@ -33,12 +33,12 @@ const { publicKey: PUBLIC_KEY, privateKey: PRIVATE_KEY } = loadOrCreateKeys();
 webpush.setVapidDetails(CONTACT, PUBLIC_KEY, PRIVATE_KEY);
 const configured = true;
 
-function subscriptionsFor(role) {
+async function subscriptionsFor(role) {
   return db.prepare('SELECT * FROM push_subscriptions WHERE role = ?').all(role);
 }
 
 async function sendToRole(role, payload) {
-  const subs = subscriptionsFor(role);
+  const subs = await subscriptionsFor(role);
   let sent = 0;
   await Promise.all(
     subs.map(async (sub) => {
@@ -51,7 +51,7 @@ async function sendToRole(role, payload) {
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
           // The push service says this subscription is gone — drop it.
-          db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(sub.id);
+          await db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(sub.id);
         } else {
           console.error('[push] failed to send to', role, err.statusCode || '', err.message);
         }
