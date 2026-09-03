@@ -25,15 +25,24 @@ You need somewhere for the app to live so it works from your phones anywhere, no
 
 **4. Open your app.** When it's done, Render shows you a web address like `https://meds-and-stars.onrender.com`. That's your app.
 
-**5. Install it like an app, on both phones:**
+**5. Install it like an app, on both phones.** This step is what makes it a real app instead of just a website — it gets its own icon on your home screen, opens full-screen with no browser bar, and (this is the important part) is what lets it deliver notifications at all:
 - Open that address in your phone's browser
-- iPhone: tap the Share icon → **Add to Home Screen**
-- Android: tap the ⋮ menu → **Add to Home screen** / **Install app**
-- Open it from the new home screen icon — that's what lets it actually deliver notifications, opening it in a regular browser tab won't.
+- **iPhone:** tap the **Share** icon (the square with an arrow) → **Add to Home Screen** → **Add**
+- **Android:** tap the **⋮** menu → **Add to Home screen** / **Install app**
+- Now close Safari/Chrome and open the app from its new icon on your home screen instead. Opening it as a normal browser tab won't deliver notifications — it has to be the installed icon.
 
-**6. On each phone, tap who that phone belongs to** ("I'm taking meds" or "I'm checking in") and allow notifications when asked. That's it — no PIN, no password. It remembers the choice on that device from then on.
+**6. On each phone, tap who that phone belongs to** ("I'm taking meds" or "I'm checking in"). No PIN, no password — it remembers the choice on that device from then on.
 
-**7. Optional — set your real names.** Open the **Settings** tab in the app and type your names in. This updates what shows up in the app and in notifications right away.
+**7. Tap "Enable notifications"** on the pink banner that appears, then **Allow** when your phone asks. That's the step that actually turns notifications on for that device.
+
+**8. Optional — set your real names.** Open the **Settings** tab in the app and type your names in. This updates what shows up in the app and in notifications right away.
+
+### About iPhone specifically
+
+iPhones only allow notifications from web apps that have been added to the Home Screen (step 5) — Apple added this in 2023, and it's the same mechanism behind every "app" here, no App Store needed. If the notification prompt never shows up on iPhone, it's almost always one of these:
+- You opened it in Safari instead of tapping the home screen icon — go back and open it from the icon.
+- You tapped "Enable notifications" before finishing step 5 — add it to the Home Screen first, then reopen it from there.
+- You (or iOS) previously said no — go to iPhone **Settings → Notifications → Meds & Stars** and make sure they're allowed.
 
 A couple of things worth knowing:
 - Anyone with your app's link can open it and pick either role — there's no password gate. Just don't post the link publicly; treat it like you would a shared photo album link.

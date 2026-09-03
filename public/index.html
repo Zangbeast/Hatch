@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Meds & Stars</title>
   <meta name="theme-color" content="#ec4899" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Meds & Stars" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="icon" href="/icons/icon-192.png" />
@@ -53,6 +56,12 @@
         <span class="stat-num" id="stat-streak">🔥 0</span>
         <span class="stat-label">day streak</span>
       </div>
+    </div>
+
+    <div id="notif-banner" class="card notif-banner" hidden>
+      <strong>🔔 Turn on notifications</strong>
+      <p class="muted" id="notif-banner-text">Tap below so reminders and confirmations can reach this phone.</p>
+      <button id="enable-notif-btn" class="primary-btn">Enable notifications</button>
     </div>
 
     <div id="caregiver-panel" class="card" hidden>

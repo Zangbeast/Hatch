@@ -125,7 +125,7 @@
     renderCalendar();
     renderMedicationList();
     selectDay(state.selectedDate);
-    setupPush().catch((err) => console.warn('Push setup skipped:', err.message));
+    refreshNotificationUi().catch((err) => console.warn('Notification check skipped:', err.message));
   }
 
   async function refreshStats() {
@@ -367,9 +367,7 @@
     try {
       const result = await api('/api/remind', { method: 'POST' });
       statusEl.hidden = false;
-      if (result.disabled) {
-        statusEl.textContent = 'Push notifications are not configured yet on the server.';
-      } else if (result.sent > 0) {
+      if (result.sent > 0) {
         statusEl.textContent = `Reminder sent (${result.sent} device${result.sent > 1 ? 's' : ''}).`;
         toast('Sweet reminder sent 💌');
       } else {
@@ -407,18 +405,26 @@
     return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
   }
 
-  async function setupPush() {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    const { publicKey, enabled } = await api('/api/push/vapid-public-key');
-    if (!enabled || !publicKey) return;
+  function pushIsSupported() {
+    return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+  }
 
+  function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  function isIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent);
+  }
+
+  // Actually registers the service worker and subscribes to push. Assumes
+  // Notification permission has already been granted — call this either
+  // right after Notification.requestPermission() resolves, or on later
+  // visits once permission is already 'granted'.
+  async function subscribeToPush() {
+    const { publicKey } = await api('/api/push/vapid-public-key');
+    if (!publicKey) return;
     const registration = await navigator.serviceWorker.register('/js/sw.js');
-
-    if (Notification.permission === 'default') {
-      await Notification.requestPermission();
-    }
-    if (Notification.permission !== 'granted') return;
-
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
@@ -428,6 +434,58 @@
     }
     await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription }) });
   }
+
+  // Shows/hides the "enable notifications" banner and, on iPhone, explains
+  // that it only works once the app is added to the Home Screen — Safari
+  // won't even offer the Notification API otherwise. Never auto-prompts:
+  // iOS silently ignores a permission request that isn't triggered by a
+  // direct tap, so the banner's button is the only place we ask.
+  async function refreshNotificationUi() {
+    const banner = $('#notif-banner');
+    const btn = $('#enable-notif-btn');
+    const text = $('#notif-banner-text');
+
+    if (!pushIsSupported()) {
+      if (isIOS() && !isStandalone()) {
+        banner.hidden = false;
+        btn.hidden = true;
+        text.textContent = 'On iPhone, notifications only work once this is added to your Home Screen. Tap the Share icon → Add to Home Screen, then reopen it from there.';
+      } else {
+        banner.hidden = true;
+      }
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      banner.hidden = true;
+      await subscribeToPush();
+      return;
+    }
+
+    if (Notification.permission === 'denied') {
+      banner.hidden = false;
+      btn.hidden = true;
+      text.textContent = "Notifications are blocked for this app — you'll need to turn them back on in your phone's notification settings.";
+      return;
+    }
+
+    banner.hidden = false;
+    btn.hidden = false;
+    text.textContent = 'Tap below so reminders and confirmations can reach this phone.';
+  }
+
+  $('#enable-notif-btn').addEventListener('click', async () => {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        await subscribeToPush();
+        toast('Notifications on! 🔔💗');
+      }
+    } catch (err) {
+      toast(err.message);
+    }
+    refreshNotificationUi();
+  });
 
   function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, (c) => ({

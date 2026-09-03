@@ -25,7 +25,7 @@ body {
   font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.view[hidden] { display: none; }
+.view[hidden] { display: none !important; }
 
 h1, h2, h3 { font-family: 'Baloo 2', 'Quicksand', sans-serif; }
 h1 { font-size: 1.5rem; margin: 0; color: var(--pink-dark); }
@@ -125,6 +125,14 @@ h3 { margin: 0 0 0.75rem; font-size: 1.05rem; color: var(--pink-dark); }
 }
 .stat-pill.streak .stat-num { color: var(--pink-dark); }
 .stat-pill .stat-label { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+
+.notif-banner {
+  background: linear-gradient(135deg, #fffbe8, #fff);
+  border-color: #fde68a;
+  text-align: center;
+}
+.notif-banner strong { color: var(--pink-dark); font-family: 'Baloo 2', sans-serif; }
+.notif-banner .primary-btn { margin-top: 0.6rem; background: linear-gradient(135deg, var(--gold), var(--gold-dark)); box-shadow: 0 6px 14px rgba(202, 138, 4, 0.25); }
 
 .remind-row {
   display: flex;
