@@ -46,8 +46,8 @@ iPhones only allow notifications from web apps that have been added to the Home 
 
 A couple of things worth knowing:
 - Anyone with your app's link can open it and pick either role — there's no password gate. Just don't post the link publicly; treat it like you would a shared photo album link.
-- The free Render plan "falls asleep" after a while if unused, so the first open after a quiet stretch can take ~30 seconds to wake up. That's normal.
-- If you ever click "redeploy" on Render (not something you'd normally need to do), it starts from a clean slate — your medication list and history reset. Day-to-day use (opening the app, it sleeping and waking back up) does **not** lose anything.
+- The free Render plan "falls asleep" after a while if unused, so the first open after a quiet stretch can take ~30 seconds to wake up. That's normal — nothing is lost.
+- **The free Render plan has no permanent storage.** Every time the app gets redeployed — which happens automatically on any code update, not just a manual click — it starts from a clean slate: medications, calendar history, gold stars/streak, and everyone's "enable notifications" setup are all wiped and need to be redone. Day-to-day use (just opening the app, it sleeping and waking back up) does **not** trigger this — only an actual redeploy does. If that becomes annoying, the fix is upgrading Render to a paid instance with a persistent disk (a few dollars a month) — ask and it can be set up.
 
 ## Running it on your own computer (for developers)
 
@@ -69,7 +69,7 @@ server/
   scheduler.js  Optional per-minute cron check for auto-reminders
 public/
   index.html, css/, js/app.js   Frontend (no build step)
-  js/sw.js       Service worker: shows push notifications, handles the
-                 "I took it" action button
+  js/sw.js       Service worker: shows push notifications, opens/focuses
+                 the app on tap (confirming "taken" happens in-app only)
   manifest.json  PWA install metadata
 ```
