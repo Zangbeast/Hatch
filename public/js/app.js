@@ -201,19 +201,34 @@
     $('#settings-patient-name').value = settings.patientName;
     $('#settings-caregiver-name').value = settings.caregiverName;
     $('#settings-current-role').textContent = state.role === 'patient' ? 'the person taking meds 🌸' : 'the person checking in 💌';
-    renderNotifStatus();
+    // Re-attempt the subscription here too — if it silently failed
+    // earlier, opening Settings is a good moment to self-heal it — then
+    // report what's actually true rather than just what permission says.
+    await refreshNotificationUi();
+    await renderNotifStatus();
   }
 
-  function renderNotifStatus() {
+  async function renderNotifStatus() {
     const el = $('#settings-notif-status');
     if (!pushIsSupported()) {
       el.textContent = isIOS() && !isStandalone() ? '⚠️ Not installed to Home Screen yet' : '⚠️ Not supported in this browser';
-    } else if (Notification.permission === 'granted') {
-      el.textContent = '✅ Enabled';
     } else if (Notification.permission === 'denied') {
       el.textContent = '❌ Blocked — turn on in phone Settings';
-    } else {
+    } else if (Notification.permission === 'default') {
       el.textContent = '⏳ Not turned on yet';
+    } else {
+      // Permission is 'granted' — but that alone doesn't mean the actual
+      // subscription succeeded, so check for a real one before saying so.
+      // getRegistration() resolves immediately either way, unlike `.ready`
+      // (which waits for the worker to be *controlling* this page and can
+      // hang if that never happens).
+      try {
+        const registration = await navigator.serviceWorker.getRegistration('/js/sw.js');
+        const subscription = registration ? await registration.pushManager.getSubscription() : null;
+        el.textContent = subscription ? '✅ Enabled' : "⚠️ Allowed, but not connected yet — tap Enable notifications on the Calendar tab";
+      } catch (err) {
+        el.textContent = '⚠️ Something went wrong checking this';
+      }
     }
   }
 
@@ -490,20 +505,55 @@
     return /iphone|ipad|ipod/i.test(navigator.userAgent);
   }
 
+  // Registering the service worker resolves before it's necessarily
+  // *active* — subscribing too early throws "no active Service Worker".
+  // Wait for activation with a bounded timeout (never `serviceWorker.ready`,
+  // which waits for the worker to be controlling this page and can hang
+  // indefinitely if that never happens).
+  function waitForActiveServiceWorker(registration, timeoutMs = 8000) {
+    if (registration.active) return Promise.resolve(registration.active);
+    const worker = registration.installing || registration.waiting;
+    if (!worker) return Promise.resolve(registration.active);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(registration.active), timeoutMs);
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'activated') {
+          clearTimeout(timer);
+          resolve(registration.active);
+        }
+      });
+    });
+  }
+
   // Actually registers the service worker and subscribes to push. Assumes
   // Notification permission has already been granted — call this either
   // right after Notification.requestPermission() resolves, or on later
   // visits once permission is already 'granted'.
+  function withTimeout(promise, ms, message) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+    ]);
+  }
+
   async function subscribeToPush() {
     const { publicKey } = await api('/api/push/vapid-public-key');
     if (!publicKey) return;
     const registration = await navigator.serviceWorker.register('/js/sw.js');
+    await waitForActiveServiceWorker(registration);
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicKey),
-      });
+      // The browser's own subscribe() call reaches out to its push service
+      // (Apple's/Google's) — on a restrictive network that can hang rather
+      // than fail, so bound it instead of leaving the UI stuck forever.
+      subscription = await withTimeout(
+        registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        }),
+        15000,
+        'Turning on notifications is taking too long — check your connection and try again.'
+      );
     }
     await api('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription }) });
   }
@@ -530,8 +580,18 @@
     }
 
     if (Notification.permission === 'granted') {
-      banner.hidden = true;
-      await subscribeToPush();
+      try {
+        await subscribeToPush();
+        banner.hidden = true;
+      } catch (err) {
+        // Permission says yes, but the actual subscription failed (a real
+        // case on iOS) — surface it instead of silently doing nothing, and
+        // offer a retry button rather than leaving the person stuck.
+        console.warn('Push subscribe failed:', err);
+        banner.hidden = false;
+        btn.hidden = false;
+        text.textContent = "Notifications are allowed, but turning them on didn't finish. Tap below to try again.";
+      }
       return;
     }
 
@@ -549,13 +609,17 @@
 
   $('#enable-notif-btn').addEventListener('click', async () => {
     try {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        await subscribeToPush();
-        toast('Notifications on! 🔔💗');
+      if (Notification.permission !== 'granted') {
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          refreshNotificationUi();
+          return;
+        }
       }
+      await subscribeToPush();
+      toast('Notifications on! 🔔💗');
     } catch (err) {
-      toast(err.message);
+      toast(err.message || "Couldn't turn on notifications — try again?");
     }
     refreshNotificationUi();
   });
