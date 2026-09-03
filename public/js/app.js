@@ -5,7 +5,6 @@
     role: null,
     name: '',
     otherName: '',
-    selectedLoginRole: 'patient',
     viewYear: new Date().getFullYear(),
     viewMonth: new Date().getMonth(), // 0-indexed
     selectedDate: toDateStr(new Date()),
@@ -84,36 +83,31 @@
     }
   }
 
-  $$('.role-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      $$('.role-btn').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.selectedLoginRole = btn.dataset.role;
-    });
-  });
-
-  $('#login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const pin = $('#pin-input').value;
+  async function pickRole(role) {
     $('#login-error').hidden = true;
     try {
-      const data = await api('/api/login', {
-        method: 'POST',
-        body: JSON.stringify({ role: state.selectedLoginRole, pin }),
-      });
+      const data = await api('/api/login', { method: 'POST', body: JSON.stringify({ role }) });
       state.role = data.role;
       state.name = data.name;
       await afterLogin();
     } catch (err) {
-      $('#login-error').textContent = 'Wrong PIN, try again.';
+      $('#login-error').textContent = "Couldn't log in — try again.";
       $('#login-error').hidden = false;
     }
-  });
+  }
+
+  $('#login-patient').addEventListener('click', () => pickRole('patient'));
+  $('#login-caregiver').addEventListener('click', () => pickRole('caregiver'));
 
   $('#logout-btn').addEventListener('click', async () => {
     await api('/api/logout', { method: 'POST' });
     state.role = null;
-    $('#pin-input').value = '';
+    showLogin();
+  });
+
+  $('#switch-role-btn').addEventListener('click', async () => {
+    await api('/api/logout', { method: 'POST' });
+    state.role = null;
     showLogin();
   });
 
@@ -152,7 +146,33 @@
       $$('.tab-panel').forEach((p) => (p.hidden = true));
       $(`#tab-${btn.dataset.tab}`).hidden = false;
       if (btn.dataset.tab === 'activity') loadActivity();
+      if (btn.dataset.tab === 'settings') loadSettingsTab();
     });
+  });
+
+  // ---------- Settings ----------
+  async function loadSettingsTab() {
+    const settings = await api('/api/settings');
+    $('#settings-patient-name').value = settings.patientName;
+    $('#settings-caregiver-name').value = settings.caregiverName;
+    $('#settings-current-role').textContent = state.role === 'patient' ? 'the person taking meds 🌸' : 'the person checking in 💌';
+  }
+
+  $('#settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await api('/api/settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        patientName: $('#settings-patient-name').value,
+        caregiverName: $('#settings-caregiver-name').value,
+      }),
+    });
+    const session = await api('/api/session');
+    state.name = session.name;
+    state.otherName = session.otherName;
+    $('#whoami').textContent = `Signed in as ${state.name}`;
+    if (state.role === 'caregiver') $('#remind-heading').textContent = `Send ${state.otherName} a reminder`;
+    toast('Names saved 💾');
   });
 
   // ---------- Medications ----------

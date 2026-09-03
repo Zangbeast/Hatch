@@ -6,13 +6,14 @@ const db = require('./db');
 const push = require('./push');
 
 const PORT = process.env.PORT || 3000;
-const PATIENT_PIN = process.env.PATIENT_PIN || '1234';
-const CAREGIVER_PIN = process.env.CAREGIVER_PIN || '5678';
-const PATIENT_NAME = process.env.PATIENT_NAME || 'Patient';
-const CAREGIVER_NAME = process.env.CAREGIVER_NAME || 'Caregiver';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me-please';
 
-const NAMES = { patient: PATIENT_NAME, caregiver: CAREGIVER_NAME };
+function currentNames() {
+  return {
+    patient: db.getSetting('patient_name', process.env.PATIENT_NAME || 'Sweetheart'),
+    caregiver: db.getSetting('caregiver_name', process.env.CAREGIVER_NAME || 'You'),
+  };
+}
 
 const REMINDER_MESSAGES = [
   (caregiver) => `💕 ${caregiver} is thinking of you — time for your meds!`,
@@ -44,7 +45,7 @@ app.use(
       httpOnly: true,
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 1000 * 60 * 60 * 24 * 90, // 90 days
+      maxAge: 1000 * 60 * 60 * 24 * 400, // ~13 months — no password, so no need to re-pick a role often
     },
   })
 );
@@ -68,16 +69,16 @@ function todayStr() {
 }
 
 // ---- Auth ----
+// No passwords: this is a two-person app, so "logging in" just means
+// picking which of you this device belongs to.
 app.post('/api/login', (req, res) => {
-  const { role, pin } = req.body || {};
-  if (role === 'patient' && pin === PATIENT_PIN) {
-    req.session.role = 'patient';
-  } else if (role === 'caregiver' && pin === CAREGIVER_PIN) {
-    req.session.role = 'caregiver';
-  } else {
-    return res.status(401).json({ error: 'Wrong role or PIN' });
+  const { role } = req.body || {};
+  if (role !== 'patient' && role !== 'caregiver') {
+    return res.status(400).json({ error: 'role must be "patient" or "caregiver"' });
   }
-  res.json({ role: req.session.role, name: NAMES[req.session.role] });
+  req.session.role = role;
+  const names = currentNames();
+  res.json({ role, name: names[role] });
 });
 
 app.post('/api/logout', (req, res) => {
@@ -86,11 +87,26 @@ app.post('/api/logout', (req, res) => {
 
 app.get('/api/session', (req, res) => {
   if (!req.session.role) return res.status(401).json({ error: 'Not logged in' });
+  const names = currentNames();
   res.json({
     role: req.session.role,
-    name: NAMES[req.session.role],
-    otherName: req.session.role === 'patient' ? CAREGIVER_NAME : PATIENT_NAME,
+    name: names[req.session.role],
+    otherName: req.session.role === 'patient' ? names.caregiver : names.patient,
   });
+});
+
+// ---- Settings (names shown in the UI and notifications) ----
+app.get('/api/settings', requireAuth, (req, res) => {
+  const names = currentNames();
+  res.json({ patientName: names.patient, caregiverName: names.caregiver });
+});
+
+app.post('/api/settings', requireAuth, (req, res) => {
+  const { patientName, caregiverName } = req.body || {};
+  if (patientName && patientName.trim()) db.setSetting('patient_name', patientName.trim());
+  if (caregiverName && caregiverName.trim()) db.setSetting('caregiver_name', caregiverName.trim());
+  const names = currentNames();
+  res.json({ patientName: names.patient, caregiverName: names.caregiver });
 });
 
 // ---- Push ----
@@ -127,7 +143,7 @@ app.post('/api/medications', requireAuth, (req, res) => {
   const info = db
     .prepare('INSERT INTO medications (name, dosage, time_of_day) VALUES (?, ?, ?)')
     .run(name.trim(), (dosage || '').trim(), (time_of_day || '').trim());
-  logEvent('medication_added', `${NAMES[req.session.role]} added medication "${name.trim()}"`);
+  logEvent('medication_added', `${currentNames()[req.session.role]} added medication "${name.trim()}"`);
   res.json(db.prepare('SELECT * FROM medications WHERE id = ?').get(info.lastInsertRowid));
 });
 
@@ -175,11 +191,11 @@ app.post('/api/doses/toggle', requireAuth, (req, res) => {
   }
 
   if (nowTaken) {
-    const actor = NAMES[req.session.role];
-    logEvent('dose_taken', `${actor} marked "${med.name}" as taken`);
+    const names = currentNames();
+    logEvent('dose_taken', `${names[req.session.role]} marked "${med.name}" as taken`);
     if (req.session.role === 'patient') {
       push.sendToRole('caregiver', {
-        title: pickRandom(CONFIRMATION_MESSAGES)(PATIENT_NAME),
+        title: pickRandom(CONFIRMATION_MESSAGES)(names.patient),
         body: `${med.name}${med.dosage ? ' (' + med.dosage + ')' : ''} marked as taken.`,
         tag: 'confirmation',
       });
@@ -211,9 +227,10 @@ app.post('/api/doses/mark-all-today', requireAuth, (req, res) => {
     takenNow.push(med.name);
   }
   if (takenNow.length) {
-    logEvent('dose_taken', `${NAMES[req.session.role]} confirmed meds taken: ${takenNow.join(', ')}`);
+    const names = currentNames();
+    logEvent('dose_taken', `${names[req.session.role]} confirmed meds taken: ${takenNow.join(', ')}`);
     push.sendToRole('caregiver', {
-      title: pickRandom(CONFIRMATION_MESSAGES)(PATIENT_NAME),
+      title: pickRandom(CONFIRMATION_MESSAGES)(names.patient),
       body: takenNow.join(', '),
       tag: 'confirmation',
     });
@@ -223,13 +240,14 @@ app.post('/api/doses/mark-all-today', requireAuth, (req, res) => {
 
 // ---- Reminder ping ----
 app.post('/api/remind', requireAuth, requireCaregiver, async (req, res) => {
+  const names = currentNames();
   const result = await push.sendToRole('patient', {
-    title: pickRandom(REMINDER_MESSAGES)(CAREGIVER_NAME),
+    title: pickRandom(REMINDER_MESSAGES)(names.caregiver),
     body: "Tap below when you've taken it — you'll earn a gold star ⭐",
     tag: 'reminder',
     actions: [{ action: 'taken', title: "I took it ✓" }],
   });
-  logEvent('reminder_sent', `${CAREGIVER_NAME} sent a reminder ping`);
+  logEvent('reminder_sent', `${names.caregiver} sent a reminder ping`);
   res.json(result);
 });
 

@@ -1,26 +1,43 @@
+const fs = require('fs');
+const path = require('path');
 const webpush = require('web-push');
 const db = require('./db');
 
-const PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
-const PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
-const CONTACT = process.env.VAPID_CONTACT_EMAIL || 'mailto:admin@example.com';
+const KEYS_PATH = process.env.VAPID_KEYS_PATH || path.join(__dirname, '..', 'vapid-keys.json');
+const CONTACT = process.env.VAPID_CONTACT_EMAIL || 'mailto:meds-and-stars@example.com';
 
-const configured = Boolean(PUBLIC_KEY && PRIVATE_KEY);
-if (configured) {
-  webpush.setVapidDetails(CONTACT, PUBLIC_KEY, PRIVATE_KEY);
-} else {
-  console.warn(
-    '[push] VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY not set — push notifications are disabled.\n' +
-    '        Run `npm run generate-vapid-keys` and put the values in your .env file.'
-  );
+// Web Push needs a real VAPID keypair (not just any random string). Rather
+// than making the person deploying this generate and paste one, we make one
+// automatically the first time the server starts and reuse it after that —
+// so push notifications work with zero configuration.
+function loadOrCreateKeys() {
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    return { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+  }
+  try {
+    const saved = JSON.parse(fs.readFileSync(KEYS_PATH, 'utf8'));
+    if (saved.publicKey && saved.privateKey) return saved;
+  } catch (err) {
+    // no saved keys yet — fall through and generate some
+  }
+  const generated = webpush.generateVAPIDKeys();
+  try {
+    fs.writeFileSync(KEYS_PATH, JSON.stringify(generated));
+  } catch (err) {
+    console.warn('[push] could not save generated VAPID keys to disk:', err.message);
+  }
+  return generated;
 }
+
+const { publicKey: PUBLIC_KEY, privateKey: PRIVATE_KEY } = loadOrCreateKeys();
+webpush.setVapidDetails(CONTACT, PUBLIC_KEY, PRIVATE_KEY);
+const configured = true;
 
 function subscriptionsFor(role) {
   return db.prepare('SELECT * FROM push_subscriptions WHERE role = ?').all(role);
 }
 
 async function sendToRole(role, payload) {
-  if (!configured) return { sent: 0, disabled: true };
   const subs = subscriptionsFor(role);
   let sent = 0;
   await Promise.all(

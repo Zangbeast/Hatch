@@ -55,39 +55,33 @@ h3 { margin: 0 0 0.75rem; font-size: 1.05rem; color: var(--pink-dark); }
   text-align: center;
   border: 2px solid var(--pink-soft);
 }
-.role-toggle {
+.role-pick {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.7rem;
   margin: 1.25rem 0 1rem;
 }
-.role-btn {
-  flex: 1;
-  padding: 0.65rem 0.5rem;
-  border-radius: 14px;
+.role-pick-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
   border: 2px solid var(--border);
   background: var(--pink-softer);
   color: var(--ink);
   font-family: 'Quicksand', sans-serif;
-  font-weight: 600;
-  font-size: 0.85rem;
+  font-weight: 700;
+  font-size: 1rem;
   cursor: pointer;
+  text-align: left;
 }
-.role-btn.active {
+.role-pick-btn:active {
   background: var(--pink);
   border-color: var(--pink);
   color: white;
 }
-#login-form { display: flex; flex-direction: column; gap: 0.75rem; }
-#pin-input {
-  padding: 0.8rem;
-  border-radius: 14px;
-  border: 2px solid var(--border);
-  font-size: 1.2rem;
-  text-align: center;
-  letter-spacing: 0.3rem;
-  font-family: inherit;
-}
-#pin-input:focus { outline: none; border-color: var(--pink); }
+.role-pick-emoji { font-size: 1.4rem; }
 .error { color: var(--danger); font-size: 0.85rem; }
 
 /* App shell */

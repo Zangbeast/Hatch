@@ -5,8 +5,6 @@ const cron = require('node-cron');
 const db = require('./db');
 const push = require('./push');
 
-const PATIENT_NAME = process.env.PATIENT_NAME || 'Patient';
-
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -39,4 +37,4 @@ cron.schedule('* * * * *', async () => {
   }
 });
 
-console.log(`[scheduler] Auto-reminders enabled for ${PATIENT_NAME}.`);
+console.log('[scheduler] Auto-reminders enabled.');

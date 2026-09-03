@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: meds-and-stars
+    runtime: node
+    plan: free
+    branch: claude/medication-reminder-app-54tu8r
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production

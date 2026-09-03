@@ -1,70 +1,62 @@
-# Meds Reminder
+# Meds & Stars 💖
 
 A tiny two-person web app for staying on top of medication:
 
-- **Calendar** — check off each dose as it's taken, day by day.
-- **Ping button** — the caregiver taps one button to send a push notification reminding the other person to take their meds.
-- **Confirmation** — when a dose is checked off (in the app, or via the "I took it ✓" button right on the reminder notification), the caregiver gets a push notification back letting them know.
+- **Calendar** — check off each dose as it's taken, day by day, and earn a gold star ⭐ for every dose (plus a streak 🔥 for full days in a row).
+- **Ping button** — the caregiver taps one button to send a cute push notification reminding the other person to take their meds.
+- **Confirmation** — when a dose is checked off (in the app, or via the "I took it ✓" button right on the reminder notification), the caregiver gets a sweet push notification back.
 - **Activity log** — a simple timeline of reminders sent and doses taken.
-- Optional **automatic reminders** at each medication's scheduled time, if that dose hasn't been marked taken yet.
 
-It's a small self-hosted app — no accounts, ads, or third-party services beyond the browser's built-in push notifications. Just two shared PINs: one for the person taking meds, one for the person checking in on them.
+No accounts, no passwords, no PINs — you just tap which one of you a device belongs to, once, and it remembers. Data lives in a small local database; push notifications use the browser's built-in Web Push, so nothing needs a third-party account.
 
-## How it works
+## Get it running online (no coding required)
 
-It's an installable [PWA](https://web.dev/progressive-web-apps/) (Progressive Web App) built with a small Node/Express backend and vanilla JS frontend — no build step. Data is stored in a local SQLite file. Push notifications use the Web Push standard (VAPID), so no Firebase/APNs account is needed and it works on both Android and iOS (iOS 16.4+, after adding the site to the home screen).
+You need somewhere for the app to live so it works from your phones anywhere, not just on one computer. This uses [Render](https://render.com), which is free to start.
 
-## Setup
+**1. Click this button:**
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Zangbeast/Hatch)
+
+(If the button doesn't work, go to render.com, sign up, then choose **New +** → **Blueprint**, and point it at this GitHub repo.)
+
+**2. Sign in with GitHub** if it asks — that's the account this code lives in.
+
+**3. Click "Apply" / "Create"** on the page Render shows you. Everything needed is already filled in — you don't have to type or paste anything. Render will build and start the app, which takes a couple of minutes.
+
+**4. Open your app.** When it's done, Render shows you a web address like `https://meds-and-stars.onrender.com`. That's your app.
+
+**5. Install it like an app, on both phones:**
+- Open that address in your phone's browser
+- iPhone: tap the Share icon → **Add to Home Screen**
+- Android: tap the ⋮ menu → **Add to Home screen** / **Install app**
+- Open it from the new home screen icon — that's what lets it actually deliver notifications, opening it in a regular browser tab won't.
+
+**6. On each phone, tap who that phone belongs to** ("I'm taking meds" or "I'm checking in") and allow notifications when asked. That's it — no PIN, no password. It remembers the choice on that device from then on.
+
+**7. Optional — set your real names.** Open the **Settings** tab in the app and type your names in. This updates what shows up in the app and in notifications right away.
+
+A couple of things worth knowing:
+- Anyone with your app's link can open it and pick either role — there's no password gate. Just don't post the link publicly; treat it like you would a shared photo album link.
+- The free Render plan "falls asleep" after a while if unused, so the first open after a quiet stretch can take ~30 seconds to wake up. That's normal.
+- If you ever click "redeploy" on Render (not something you'd normally need to do), it starts from a clean slate — your medication list and history reset. Day-to-day use (opening the app, it sleeping and waking back up) does **not** lose anything.
+
+## Running it on your own computer (for developers)
 
 ```bash
 npm install
-cp .env.example .env
-npm run generate-vapid-keys   # paste the output into .env
-```
-
-Edit `.env`:
-
-| Variable | What it's for |
-| --- | --- |
-| `PATIENT_PIN` / `CAREGIVER_PIN` | PINs the two of you use to log in. Pick anything you like. |
-| `PATIENT_NAME` / `CAREGIVER_NAME` | Display names shown in the UI and notifications. |
-| `SESSION_SECRET` | Random string for signing session cookies (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`). |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | From `npm run generate-vapid-keys`. Without these, everything still works except push notifications. |
-| `VAPID_CONTACT_EMAIL` | Any `mailto:` address; required by the Web Push spec, not shown to anyone. |
-| `ENABLE_AUTO_REMINDERS` | Set to `true` to also auto-send a reminder at each medication's scheduled time if it's still unchecked. |
-
-Then run it:
-
-```bash
 npm start
 ```
 
-Visit `http://localhost:3000`.
-
-## Using it day to day
-
-1. Both people open the site and log in with their own PIN ("I'm taking meds" vs. "I'm checking in"), then add the site to their phone's home screen so it behaves like a real app and can receive push notifications.
-2. Add each medication once, with an optional dosage and reminder time, in the **Medications** tab.
-3. Each day, check off doses on the **Calendar** tab as they're taken — a green dot marks fully-completed days, yellow means partially done.
-4. The caregiver can hit **🔔 Ping now** any time to send a reminder — it arrives as a push notification with a one-tap **"I took it ✓"** action, so confirming doesn't require opening the app.
-5. Whenever a dose is checked off — from the app or from that notification button — the caregiver gets a push notification back.
-
-## Deploying so it works outside your home network
-
-Push notifications and installable PWAs both require **HTTPS** (plain `http://localhost` is fine for testing, but nothing else). The simplest options:
-
-- A small always-on host with a free TLS cert, e.g. [Render](https://render.com), [Railway](https://railway.app), or [Fly.io](https://fly.io) — deploy this repo as a Node web service, set the environment variables from `.env`, and attach a persistent volume (or accept an ephemeral one) for `data.db`.
-- Your own VPS behind a reverse proxy (Caddy or nginx) with Let's Encrypt.
-
-Whichever you choose, keep `SESSION_SECRET` and the PINs private, and don't commit your real `.env` file (it's already git-ignored).
+Visit `http://localhost:3000`. See `.env.example` for optional settings (custom session secret, starting names, etc.) — none of them are required to try it out.
 
 ## Project layout
 
 ```
+render.yaml      One-click Render deployment config
 server/
-  index.js      Express app: auth, medications, doses, push, activity log
-  db.js         SQLite schema
-  push.js       Web Push (VAPID) sending, with dead-subscription cleanup
+  index.js      Express app: role picker, medications, doses, push, settings, activity log
+  db.js         SQLite schema + settings key/value store
+  push.js       Web Push (VAPID) sending — auto-generates its own keys on first run
   scheduler.js  Optional per-minute cron check for auto-reminders
 public/
   index.html, css/, js/app.js   Frontend (no build step)

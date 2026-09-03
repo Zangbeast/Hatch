@@ -18,15 +18,18 @@
   <section id="login-view" class="view">
     <div class="login-card">
       <h1>💖 Meds &amp; Stars</h1>
-      <p class="subtitle">Who's checking in? ✨</p>
-      <div class="role-toggle">
-        <button type="button" class="role-btn active" data-role="patient">I'm taking meds 🌸</button>
-        <button type="button" class="role-btn" data-role="caregiver">I'm checking in 💌</button>
+      <p class="subtitle">Who's this? Pick your side ✨</p>
+      <div class="role-pick">
+        <button type="button" class="role-pick-btn" id="login-patient">
+          <span class="role-pick-emoji">🌸</span>
+          <span>I'm taking meds</span>
+        </button>
+        <button type="button" class="role-pick-btn" id="login-caregiver">
+          <span class="role-pick-emoji">💌</span>
+          <span>I'm checking in</span>
+        </button>
       </div>
-      <form id="login-form">
-        <input type="password" inputmode="numeric" id="pin-input" placeholder="Enter PIN" autocomplete="current-password" required />
-        <button type="submit">Continue</button>
-      </form>
+      <p class="muted">You only need to pick once per device — it'll remember you.</p>
       <p id="login-error" class="error" hidden></p>
     </div>
   </section>
@@ -67,6 +70,7 @@
       <button class="tab-btn active" data-tab="calendar">Calendar</button>
       <button class="tab-btn" data-tab="medications">Medications</button>
       <button class="tab-btn" data-tab="activity">Activity</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
     </nav>
 
     <!-- Calendar tab -->
@@ -112,6 +116,30 @@
       <div class="card">
         <h3>Recent activity</h3>
         <ul id="activity-list" class="activity-list"></ul>
+      </div>
+    </div>
+
+    <!-- Settings tab -->
+    <div id="tab-settings" class="tab-panel" hidden>
+      <div class="card">
+        <h3>Names</h3>
+        <p class="muted">Used in the app and in notifications, e.g. "Send Alex a reminder".</p>
+        <form id="settings-form" class="med-form">
+          <label class="time-label">
+            Name for the person taking meds
+            <input type="text" id="settings-patient-name" placeholder="e.g. Alex" />
+          </label>
+          <label class="time-label">
+            Name for the person checking in
+            <input type="text" id="settings-caregiver-name" placeholder="e.g. Sam" />
+          </label>
+          <button type="submit" class="primary-btn">Save names</button>
+        </form>
+      </div>
+      <div class="card">
+        <h3>This device</h3>
+        <p class="muted">This device is set up as: <strong id="settings-current-role"></strong></p>
+        <button id="switch-role-btn" class="ghost-btn">Switch who this device is</button>
       </div>
     </div>
   </section>

@@ -108,4 +108,5 @@ node_modules/
 data.db
 data.db-wal
 data.db-shm
+vapid-keys.json
 npm-debug.log*
