@@ -19,26 +19,17 @@ self.addEventListener('push', (event) => {
     tag: payload.tag || 'meds',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
-    actions: payload.actions || [],
     data: payload,
     renotify: true,
   };
   event.waitUntil(self.registration.showNotification(payload.title || 'Meds Reminder', options));
 });
 
+// Tapping a notification only ever opens/focuses the app — there are no
+// action buttons, so "meds taken" can only be confirmed from inside the
+// app itself (see the reminder prompt in app.js).
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-
-  if (event.action === 'taken') {
-    event.waitUntil(
-      fetch('/api/doses/mark-all-today', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      }).catch(() => {})
-    );
-    return;
-  }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

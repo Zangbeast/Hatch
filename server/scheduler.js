@@ -26,10 +26,10 @@ cron.schedule('* * * * *', async () => {
     if (dose && dose.taken) continue;
     await push.sendToRole('patient', {
       title: 'Medication reminder 💊',
-      body: `Time to take ${med.name}${med.dosage ? ' (' + med.dosage + ')' : ''}.`,
+      body: `Time to take ${med.name}${med.dosage ? ' (' + med.dosage + ')' : ''}. Open the app to check in.`,
       tag: 'reminder',
-      actions: [{ action: 'taken', title: "I took it ✓" }],
     });
+    db.setSetting('pending_reminder_at', new Date().toISOString());
     db.prepare('INSERT INTO events (type, message) VALUES (?, ?)').run(
       'auto_reminder_sent',
       `Automatic reminder sent for "${med.name}"`

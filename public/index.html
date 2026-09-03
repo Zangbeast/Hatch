@@ -146,12 +146,31 @@
         </form>
       </div>
       <div class="card">
+        <h3>Notifications on this device</h3>
+        <p class="muted">Status: <strong id="settings-notif-status">checking…</strong></p>
+        <button id="test-notif-btn" class="ghost-btn">Send a test notification to me</button>
+        <p id="test-notif-result" class="muted" hidden></p>
+      </div>
+      <div class="card">
         <h3>This device</h3>
         <p class="muted">This device is set up as: <strong id="settings-current-role"></strong></p>
         <button id="switch-role-btn" class="ghost-btn">Switch who this device is</button>
       </div>
     </div>
   </section>
+
+  <!-- Reminder check-in prompt: shown in-app, never actionable from the notification itself -->
+  <div id="reminder-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-emoji">💊</div>
+      <h3 id="reminder-modal-title">Did you take your meds?</h3>
+      <p class="muted" id="reminder-modal-text"></p>
+      <div class="modal-actions">
+        <button id="reminder-yes-btn" class="primary-btn">✅ Yes, I took them</button>
+        <button id="reminder-no-btn" class="ghost-btn">Not yet</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast" class="toast" hidden></div>
 

@@ -131,6 +131,17 @@ app.post('/api/push/unsubscribe', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// Lets someone verify push actually reaches their own device, without
+// needing the other person to test it for them.
+app.post('/api/push/test', requireAuth, async (req, res) => {
+  const result = await push.sendToRole(req.session.role, {
+    title: 'Test notification 🔔',
+    body: "If you can see this, notifications are working on this device!",
+    tag: 'test',
+  });
+  res.json(result);
+});
+
 // ---- Medications ----
 app.get('/api/medications', requireAuth, (req, res) => {
   const meds = db.prepare('SELECT * FROM medications WHERE active = 1 ORDER BY time_of_day, name').all();
@@ -205,9 +216,10 @@ app.post('/api/doses/toggle', requireAuth, (req, res) => {
   res.json({ medication_id: Number(medication_id), date, taken: Boolean(nowTaken) });
 });
 
-// Marks every not-yet-taken active medication for today as taken.
-// Used by the "I took it" action button on the reminder push notification,
-// so the patient can confirm without opening the app.
+// Marks every not-yet-taken active medication for today as taken. Used by
+// the in-app "Yes, I took them" button on the reminder prompt — not by the
+// push notification itself, which has no action buttons on purpose (taking
+// meds should be confirmed inside the app, not with one tap on a lock screen).
 app.post('/api/doses/mark-all-today', requireAuth, (req, res) => {
   const date = todayStr();
   const meds = db.prepare('SELECT * FROM medications WHERE active = 1').all();
@@ -226,6 +238,7 @@ app.post('/api/doses/mark-all-today', requireAuth, (req, res) => {
     }
     takenNow.push(med.name);
   }
+  db.setSetting('pending_reminder_at', '');
   if (takenNow.length) {
     const names = currentNames();
     logEvent('dose_taken', `${names[req.session.role]} confirmed meds taken: ${takenNow.join(', ')}`);
@@ -243,12 +256,25 @@ app.post('/api/remind', requireAuth, requireCaregiver, async (req, res) => {
   const names = currentNames();
   const result = await push.sendToRole('patient', {
     title: pickRandom(REMINDER_MESSAGES)(names.caregiver),
-    body: "Tap below when you've taken it — you'll earn a gold star ⭐",
+    body: 'Open the app to check in — no need to do anything from this notification.',
     tag: 'reminder',
-    actions: [{ action: 'taken', title: "I took it ✓" }],
   });
+  db.setSetting('pending_reminder_at', new Date().toISOString());
   logEvent('reminder_sent', `${names.caregiver} sent a reminder ping`);
   res.json(result);
+});
+
+// The patient's app polls this on open/return-to-foreground so a ping can
+// only ever be confirmed from inside the app, never straight from the
+// notification itself.
+app.get('/api/reminder-status', requireAuth, (req, res) => {
+  const sentAt = db.getSetting('pending_reminder_at', '');
+  res.json({ pending: Boolean(sentAt), sentAt: sentAt || null });
+});
+
+app.post('/api/reminder-status/clear', requireAuth, (req, res) => {
+  db.setSetting('pending_reminder_at', '');
+  res.json({ ok: true });
 });
 
 // ---- Stars & streak ----

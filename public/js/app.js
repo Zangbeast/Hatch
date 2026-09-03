@@ -126,7 +126,52 @@
     renderMedicationList();
     selectDay(state.selectedDate);
     refreshNotificationUi().catch((err) => console.warn('Notification check skipped:', err.message));
+    checkReminderPrompt();
   }
+
+  // ---------- Reminder check-in prompt ----------
+  // Only ever shown from inside the app — never actionable straight from a
+  // push notification. Checked whenever the app opens and whenever it comes
+  // back to the foreground, so it catches a ping whether that's how you got
+  // here or you just happened to open the app afterward.
+  async function checkReminderPrompt() {
+    if (state.role !== 'patient') return;
+    try {
+      const status = await api('/api/reminder-status');
+      if (status.pending) {
+        $('#reminder-modal-text').textContent = `${state.otherName} checked in on you 💕`;
+      }
+      $('#reminder-modal').hidden = !status.pending;
+    } catch (err) {
+      // non-critical
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.role) checkReminderPrompt();
+  });
+
+  $('#reminder-yes-btn').addEventListener('click', async () => {
+    try {
+      await api('/api/doses/mark-all-today', { method: 'POST' });
+      $('#reminder-modal').hidden = true;
+      await Promise.all([loadDosesForVisibleMonth(), refreshStats()]);
+      renderCalendar();
+      renderDayDetail();
+      toast(CUTE_TAKEN_MESSAGES[Math.floor(Math.random() * CUTE_TAKEN_MESSAGES.length)]);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  $('#reminder-no-btn').addEventListener('click', async () => {
+    try {
+      await api('/api/reminder-status/clear', { method: 'POST' });
+    } catch (err) {
+      // non-critical
+    }
+    $('#reminder-modal').hidden = true;
+  });
 
   async function refreshStats() {
     try {
@@ -156,7 +201,35 @@
     $('#settings-patient-name').value = settings.patientName;
     $('#settings-caregiver-name').value = settings.caregiverName;
     $('#settings-current-role').textContent = state.role === 'patient' ? 'the person taking meds 🌸' : 'the person checking in 💌';
+    renderNotifStatus();
   }
+
+  function renderNotifStatus() {
+    const el = $('#settings-notif-status');
+    if (!pushIsSupported()) {
+      el.textContent = isIOS() && !isStandalone() ? '⚠️ Not installed to Home Screen yet' : '⚠️ Not supported in this browser';
+    } else if (Notification.permission === 'granted') {
+      el.textContent = '✅ Enabled';
+    } else if (Notification.permission === 'denied') {
+      el.textContent = '❌ Blocked — turn on in phone Settings';
+    } else {
+      el.textContent = '⏳ Not turned on yet';
+    }
+  }
+
+  $('#test-notif-btn').addEventListener('click', async () => {
+    const resultEl = $('#test-notif-result');
+    resultEl.hidden = false;
+    try {
+      const result = await api('/api/push/test', { method: 'POST' });
+      resultEl.textContent =
+        result.sent > 0
+          ? `Sent! Check this device in the next few seconds. (${result.sent} device${result.sent > 1 ? 's' : ''})`
+          : "Nothing to send to — this device isn't subscribed yet. Tap \"Enable notifications\" on the Calendar tab first.";
+    } catch (err) {
+      resultEl.textContent = err.message;
+    }
+  });
 
   $('#settings-form').addEventListener('submit', async (e) => {
     e.preventDefault();
