@@ -356,20 +356,26 @@
     }
   }
 
-  // A day counts as "complete" (gold star) once MORE than 40% of the meds are
-  // checked off — she doesn't need to take everything every day. Keep this in
-  // sync with DAY_COMPLETE_THRESHOLD in server/index.js (used for the streak).
+  // A period (morning or evening) counts as "done" once MORE than 40% of that
+  // period's meds are checked off — she doesn't need everything every day. Keep
+  // the threshold in sync with DAY_COMPLETE_THRESHOLD in server/index.js.
   const DAY_COMPLETE_THRESHOLD = 0.4;
 
-  function dayStatus(dateStr) {
-    if (!state.medications.length) return null;
-    let takenCount = 0;
-    for (const med of state.medications) {
-      if (state.doses[`${med.id}:${dateStr}`]) takenCount += 1;
+  function periodDone(meds, dateStr) {
+    if (!meds.length) return false;
+    let taken = 0;
+    for (const med of meds) {
+      if (state.doses[`${med.id}:${dateStr}`]) taken += 1;
     }
-    if (takenCount === 0) return null;
-    if (takenCount / state.medications.length > DAY_COMPLETE_THRESHOLD) return 'full';
-    return 'partial';
+    return taken / meds.length > DAY_COMPLETE_THRESHOLD;
+  }
+
+  function dayPeriodStatus(dateStr) {
+    const { morning, evening } = medsByPeriod();
+    return {
+      morningDone: periodDone(morning, dateStr),
+      eveningDone: periodDone(evening, dateStr),
+    };
   }
 
   function renderCalendar() {
@@ -406,12 +412,11 @@
       if (dateStr === todayStr) el.classList.add('today');
       if (dateStr === state.selectedDate) el.classList.add('selected');
 
-      const status = dayStatus(dateStr);
-      let marker = '';
-      if (status === 'full') marker = '<span class="cal-star">⭐</span>';
-      else if (status === 'partial') marker = '<span class="cal-dot"></span>';
+      const { morningDone, eveningDone } = dayPeriodStatus(dateStr);
+      if (morningDone) el.classList.add('m-done');
+      if (eveningDone) el.classList.add('e-done');
 
-      el.innerHTML = `<span>${day}</span>${marker}`;
+      el.innerHTML = `<span class="cal-num">${day}</span>`;
       el.addEventListener('click', () => selectDay(dateStr));
       grid.appendChild(el);
     }

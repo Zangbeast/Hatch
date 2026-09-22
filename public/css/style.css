@@ -12,6 +12,10 @@
   --border: #f9d3e8;
   --danger: #e11d48;
   --taken: #f5b301;
+  /* Calendar day two-tone (morning = pink, evening = purple) */
+  --cal-empty: #fbdcec;      /* light pink — nothing done yet */
+  --cal-morning: #ef5aa4;    /* medium pink — morning done */
+  --cal-evening: #c3b4f6;    /* light purple — evening done */
   color-scheme: light;
 }
 
@@ -215,27 +219,55 @@ button { font-family: inherit; }
   border-radius: 12px;
   border: 2px solid var(--pink-soft);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  background: var(--pink-softer);
   cursor: pointer;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   position: relative;
+  overflow: hidden;
+  /* Diagonal split, corner to corner (top-right → bottom-left):
+     upper-left triangle = morning, lower-right triangle = evening.
+     Each side lights up when that period is done. */
+  --morning-color: var(--cal-empty);
+  --evening-color: var(--cal-empty);
+  background: linear-gradient(
+    to bottom right,
+    var(--morning-color) 0 47%,
+    rgba(255, 255, 255, 0.7) 47% 53%,
+    var(--evening-color) 53% 100%
+  );
+}
+.cal-day.m-done { --morning-color: var(--cal-morning); }
+.cal-day.e-done { --evening-color: var(--cal-evening); }
+.cal-num {
+  position: relative;
+  z-index: 1;
+  color: var(--ink);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
 }
 .cal-day.empty { visibility: hidden; cursor: default; }
-.cal-day.selected { outline: 2px solid var(--pink); background: var(--pink-soft); }
-.cal-day.today { color: var(--pink-dark); border-color: var(--pink); }
-.cal-star { font-size: 0.8rem; line-height: 1; }
-.cal-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--pink);
-  opacity: 0.5;
+.cal-day.selected { outline: 3px solid var(--pink-dark); outline-offset: -1px; }
+.cal-day.today { border-color: var(--pink); }
+
+.cal-legend {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 0.85rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 600;
 }
+.cal-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+.cal-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.cal-legend-swatch.morning { background: var(--cal-morning); }
+.cal-legend-swatch.evening { background: var(--cal-evening); }
 
 /* Day detail / med checklist */
 .med-checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
