@@ -268,6 +268,21 @@
     state.medications = await api('/api/medications');
   }
 
+  // Split the med list into morning and evening. Anything not explicitly
+  // marked evening is treated as morning (older meds default to morning).
+  function medsByPeriod() {
+    const evening = state.medications.filter((m) => m.period === 'evening');
+    const morning = state.medications.filter((m) => m.period !== 'evening');
+    return { morning, evening };
+  }
+
+  function periodHeader(label) {
+    const li = document.createElement('li');
+    li.className = 'period-header';
+    li.textContent = label;
+    return li;
+  }
+
   function renderMedicationList() {
     const list = $('#med-list');
     list.innerHTML = '';
@@ -275,22 +290,44 @@
       list.innerHTML = '<li class="muted">No medications yet.</li>';
       return;
     }
-    for (const med of state.medications) {
-      const li = document.createElement('li');
-      const meta = [med.dosage, med.time_of_day].filter(Boolean).join(' · ');
-      li.innerHTML = `
-        <span><span class="med-name">${escapeHtml(med.name)}</span>${meta ? ` <span class="med-meta">${escapeHtml(meta)}</span>` : ''}</span>
-        <button class="icon-btn" data-id="${med.id}" aria-label="Remove ${escapeHtml(med.name)}">✕</button>
-      `;
-      li.querySelector('.icon-btn').addEventListener('click', async () => {
-        if (!confirm(`Remove ${med.name}?`)) return;
-        await api(`/api/medications/${med.id}`, { method: 'DELETE' });
-        await loadMedications();
-        renderMedicationList();
-        renderDayDetail();
-      });
-      list.appendChild(li);
+    const { morning, evening } = medsByPeriod();
+    if (morning.length) {
+      list.appendChild(periodHeader('🌅 Morning'));
+      morning.forEach((med) => list.appendChild(buildManageRow(med)));
     }
+    if (evening.length) {
+      list.appendChild(periodHeader('🌙 Evening'));
+      evening.forEach((med) => list.appendChild(buildManageRow(med)));
+    }
+  }
+
+  function buildManageRow(med) {
+    const li = document.createElement('li');
+    const meta = [med.dosage, med.time_of_day].filter(Boolean).join(' · ');
+    const isEvening = med.period === 'evening';
+    li.innerHTML = `
+      <span><span class="med-name">${escapeHtml(med.name)}</span>${meta ? ` <span class="med-meta">${escapeHtml(meta)}</span>` : ''}</span>
+      <span class="med-actions">
+        <button class="period-toggle" title="Tap to move to ${isEvening ? 'morning' : 'evening'}">${isEvening ? '🌙 Evening' : '🌅 Morning'}</button>
+        <button class="icon-btn" aria-label="Remove ${escapeHtml(med.name)}">✕</button>
+      </span>
+    `;
+    li.querySelector('.period-toggle').addEventListener('click', async () => {
+      const next = isEvening ? 'morning' : 'evening';
+      await api(`/api/medications/${med.id}/period`, { method: 'PATCH', body: JSON.stringify({ period: next }) });
+      await loadMedications();
+      renderMedicationList();
+      renderDayDetail();
+      toast(next === 'evening' ? 'Moved to evening 🌙' : 'Moved to morning 🌅');
+    });
+    li.querySelector('.icon-btn').addEventListener('click', async () => {
+      if (!confirm(`Remove ${med.name}?`)) return;
+      await api(`/api/medications/${med.id}`, { method: 'DELETE' });
+      await loadMedications();
+      renderMedicationList();
+      renderDayDetail();
+    });
+    return li;
   }
 
   $('#med-form').addEventListener('submit', async (e) => {
@@ -298,8 +335,9 @@
     const name = $('#med-name').value.trim();
     const dosage = $('#med-dosage').value.trim();
     const time_of_day = $('#med-time').value;
+    const period = $('#med-period').value;
     if (!name) return;
-    await api('/api/medications', { method: 'POST', body: JSON.stringify({ name, dosage, time_of_day }) });
+    await api('/api/medications', { method: 'POST', body: JSON.stringify({ name, dosage, time_of_day, period }) });
     $('#med-form').reset();
     await loadMedications();
     renderMedicationList();
@@ -418,38 +456,48 @@
     list.innerHTML = '';
     $('#day-empty').hidden = state.medications.length > 0;
 
-    for (const med of state.medications) {
-      const key = `${med.id}:${state.selectedDate}`;
-      const taken = Boolean(state.doses[key]);
-      const li = document.createElement('li');
-      li.dataset.medId = med.id;
-      if (taken) li.classList.add('taken');
-      const meta = [med.dosage, med.time_of_day].filter(Boolean).join(' · ');
-      li.innerHTML = `
-        <input type="checkbox" ${taken ? 'checked' : ''} aria-label="Mark ${escapeHtml(med.name)} taken" />
-        <span><span class="med-name">${escapeHtml(med.name)}</span>${meta ? ` <span class="med-meta">${escapeHtml(meta)}</span>` : ''}</span>
-      `;
-      li.querySelector('input').addEventListener('change', async () => {
-        try {
-          const result = await api('/api/doses/toggle', {
-            method: 'POST',
-            body: JSON.stringify({ medication_id: med.id, date: state.selectedDate }),
-          });
-          state.doses[key] = result.taken ? 1 : 0;
-          renderDayDetail();
-          renderCalendar();
-          refreshStats();
-          if (result.taken) {
-            const freshLi = $(`#day-med-list li[data-med-id="${med.id}"]`);
-            if (freshLi) starBurst(freshLi);
-            toast(CUTE_TAKEN_MESSAGES[Math.floor(Math.random() * CUTE_TAKEN_MESSAGES.length)]);
-          }
-        } catch (err) {
-          toast(err.message);
-        }
-      });
-      list.appendChild(li);
+    const { morning, evening } = medsByPeriod();
+    if (morning.length) {
+      list.appendChild(periodHeader('🌅 Morning'));
+      morning.forEach((med) => list.appendChild(buildDayMedItem(med)));
     }
+    if (evening.length) {
+      list.appendChild(periodHeader('🌙 Evening'));
+      evening.forEach((med) => list.appendChild(buildDayMedItem(med)));
+    }
+  }
+
+  function buildDayMedItem(med) {
+    const key = `${med.id}:${state.selectedDate}`;
+    const taken = Boolean(state.doses[key]);
+    const li = document.createElement('li');
+    li.dataset.medId = med.id;
+    if (taken) li.classList.add('taken');
+    const meta = [med.dosage, med.time_of_day].filter(Boolean).join(' · ');
+    li.innerHTML = `
+      <input type="checkbox" ${taken ? 'checked' : ''} aria-label="Mark ${escapeHtml(med.name)} taken" />
+      <span><span class="med-name">${escapeHtml(med.name)}</span>${meta ? ` <span class="med-meta">${escapeHtml(meta)}</span>` : ''}</span>
+    `;
+    li.querySelector('input').addEventListener('change', async () => {
+      try {
+        const result = await api('/api/doses/toggle', {
+          method: 'POST',
+          body: JSON.stringify({ medication_id: med.id, date: state.selectedDate }),
+        });
+        state.doses[key] = result.taken ? 1 : 0;
+        renderDayDetail();
+        renderCalendar();
+        refreshStats();
+        if (result.taken) {
+          const freshLi = $(`#day-med-list li[data-med-id="${med.id}"]`);
+          if (freshLi) starBurst(freshLi);
+          toast(CUTE_TAKEN_MESSAGES[Math.floor(Math.random() * CUTE_TAKEN_MESSAGES.length)]);
+        }
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+    return li;
   }
 
   // ---------- Caregiver: send reminder ----------

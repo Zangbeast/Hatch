@@ -255,6 +255,34 @@ button { font-family: inherit; }
 .med-name { font-weight: 700; }
 .med-meta { color: var(--muted); font-size: 0.8rem; }
 
+/* Morning / evening section labels inside the med lists */
+.period-header {
+  border: none !important;
+  background: none !important;
+  padding: 0.6rem 0.15rem 0.1rem !important;
+  margin: 0 !important;
+  display: block !important;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  color: var(--pink-dark);
+  font-size: 0.95rem;
+}
+.period-header:first-child { padding-top: 0 !important; }
+
+/* The morning/evening toggle on each medication row */
+.med-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+.period-toggle {
+  background: var(--pink-softer);
+  border: 2px solid var(--border);
+  color: var(--pink-dark);
+  border-radius: 10px;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 /* Star burst */
 .star-burst {
   position: absolute;
@@ -272,12 +300,14 @@ button { font-family: inherit; }
 
 /* Medication management */
 .med-form { display: flex; flex-direction: column; gap: 0.6rem; }
-.med-form input {
+.med-form input,
+.med-form select {
   padding: 0.65rem 0.7rem;
   border-radius: 12px;
   border: 2px solid var(--border);
   font-size: 0.95rem;
   font-family: inherit;
+  background: var(--card);
 }
 .time-label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
 .med-manage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }

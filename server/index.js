@@ -168,13 +168,21 @@ app.get('/api/medications', requireAuth, wrap(async (req, res) => {
 
 app.post('/api/medications', requireAuth, wrap(async (req, res) => {
   const { name, dosage, time_of_day } = req.body || {};
+  const period = req.body && req.body.period === 'evening' ? 'evening' : 'morning';
   if (!name || !name.trim()) return res.status(400).json({ error: 'Name is required' });
   const info = await db
-    .prepare('INSERT INTO medications (name, dosage, time_of_day) VALUES (?, ?, ?)')
-    .run(name.trim(), (dosage || '').trim(), (time_of_day || '').trim());
+    .prepare('INSERT INTO medications (name, dosage, time_of_day, period) VALUES (?, ?, ?, ?)')
+    .run(name.trim(), (dosage || '').trim(), (time_of_day || '').trim(), period);
   const names = await currentNames();
   await logEvent('medication_added', `${names[req.session.role]} added medication "${name.trim()}"`);
   res.json(await db.prepare('SELECT * FROM medications WHERE id = ?').get(info.lastInsertRowid));
+}));
+
+// Move a medication between morning and evening (keeps its dose history).
+app.patch('/api/medications/:id/period', requireAuth, wrap(async (req, res) => {
+  const period = req.body && req.body.period === 'evening' ? 'evening' : 'morning';
+  await db.prepare('UPDATE medications SET period = ? WHERE id = ?').run(period, req.params.id);
+  res.json({ ok: true, period });
 }));
 
 app.delete('/api/medications/:id', requireAuth, wrap(async (req, res) => {

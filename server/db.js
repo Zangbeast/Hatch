@@ -17,6 +17,7 @@ const SCHEMA = `
     name TEXT NOT NULL,
     dosage TEXT DEFAULT '',
     time_of_day TEXT DEFAULT '',
+    period TEXT NOT NULL DEFAULT 'morning',
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
@@ -53,6 +54,21 @@ const SCHEMA = `
 
 async function init() {
   await client.executeMultiple(SCHEMA);
+
+  // For databases created before medications had a morning/evening "period":
+  // add the column, and the first time we do, seed evening for anything whose
+  // reminder time is 6pm or later. Runs exactly once (the ALTER throws
+  // afterward because the column already exists).
+  let periodColumnAdded = false;
+  try {
+    await client.execute("ALTER TABLE medications ADD COLUMN period TEXT NOT NULL DEFAULT 'morning'");
+    periodColumnAdded = true;
+  } catch (err) {
+    // Column already exists — nothing to migrate.
+  }
+  if (periodColumnAdded) {
+    await client.execute("UPDATE medications SET period = 'evening' WHERE time_of_day >= '18:00'");
+  }
 }
 
 // Named args come through as a single plain object (e.g. { role, endpoint,
