@@ -1,0 +1,10 @@
+[Unit]
+Description=Auto-update Meds & Stars from GitHub and rebuild if changed
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# >>> EDIT this to wherever you cloned the repo <<<
+WorkingDirectory=/opt/meds-and-stars
+ExecStart=/opt/meds-and-stars/homelab/update.sh

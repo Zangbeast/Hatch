@@ -1,7 +1,7 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
-const session = require('express-session');
+const cookieSession = require('cookie-session');
 const db = require('./db');
 const push = require('./push');
 
@@ -37,17 +37,24 @@ function pickRandom(list) {
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
+// The only thing "logging in" stores is which role this device is, which
+// isn't sensitive — so we keep it in a signed cookie rather than server
+// memory. That means the choice survives restarts (including auto-updates),
+// so nobody gets logged out and has to re-pick their role every time the
+// app rebuilds.
 app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 1000 * 60 * 60 * 24 * 400, // ~13 months — no password, so no need to re-pick a role often
-    },
+  cookieSession({
+    name: 'meds',
+    keys: [SESSION_SECRET],
+    httpOnly: true,
+    sameSite: 'lax',
+    // Deliberately not forcing the Secure attribute: in production the app is
+    // only reachable over HTTPS anyway (Render / Tailscale Funnel both
+    // terminate TLS), and forcing Secure makes the cookie depend on the proxy
+    // forwarding an https flag — if it doesn't, login breaks silently. Not
+    // worth that failure mode for a non-sensitive "which role" cookie.
+    secure: false,
+    maxAge: 1000 * 60 * 60 * 24 * 400, // ~13 months
   })
 );
 
@@ -92,7 +99,8 @@ app.post('/api/login', wrap(async (req, res) => {
 }));
 
 app.post('/api/logout', (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  req.session = null;
+  res.json({ ok: true });
 });
 
 app.get('/api/session', wrap(async (req, res) => {

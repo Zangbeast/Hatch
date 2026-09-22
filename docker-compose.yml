@@ -1,0 +1,25 @@
+services:
+  meds:
+    build: .
+    container_name: meds-and-stars
+    restart: unless-stopped
+    # Only exposed on localhost — Tailscale Funnel is what makes it reachable
+    # from phones. Change to "3000:3000" if you also want it on your LAN.
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_PATH: /data/data.db
+      VAPID_KEYS_PATH: /data/vapid-keys.json
+      # Always-on box, so let it send its own scheduled reminders too.
+      ENABLE_AUTO_REMINDERS: "true"
+      # Optional — uncomment and set your own if you like:
+      # SESSION_SECRET: "a-long-random-string-so-logins-stay-put"
+      # VAPID_CONTACT_EMAIL: "mailto:you@example.com"
+    volumes:
+      # Everything that must persist (database + push keys) lives here.
+      - meds-data:/data
+
+volumes:
+  meds-data:

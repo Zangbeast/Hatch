@@ -9,6 +9,10 @@ A tiny two-person web app for staying on top of medication:
 
 No accounts, no passwords, no PINs — you just tap which one of you a device belongs to, once, and it remembers. Data lives in a small local database; push notifications use the browser's built-in Web Push, so nothing needs a third-party account.
 
+> **Prefer to self-host?** If you have your own always-on server (a homelab, a
+> mini PC, a Pi), see **[HOMELAB.md](HOMELAB.md)** for a Docker + Tailscale
+> Funnel setup that's always-on, auto-updating, and free forever.
+
 ## Get it running online (no coding required)
 
 You need somewhere for the app to live so it works from your phones anywhere, not just on one computer. This uses [Render](https://render.com), which is free to start.
