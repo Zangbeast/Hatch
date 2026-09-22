@@ -124,6 +124,30 @@ within ~3 minutes your box has it, rebuilt and restarted, no action from you.
 
 ---
 
+## Restore history from the old app (one-time, optional)
+
+If you were already using the app on Render/Turso and want that history moved
+into your homelab copy, run this once. It copies the medication list, dose
+history, names, and activity log from the old Turso database into your local
+one. It replaces the homelab app's history with the old app's (so do it before
+you start logging on the homelab version), and it leaves this device's
+notification setup alone.
+
+```bash
+cd /opt/meds-and-stars
+git pull
+docker compose build          # get the migration script into the image
+docker compose stop meds      # free the database file
+docker compose run --rm \
+  -e TURSO_DATABASE_URL='libsql://YOUR-DB.turso.io' \
+  -e TURSO_AUTH_TOKEN='YOUR-TURSO-TOKEN' \
+  meds node migrate-from-turso.js
+docker compose up -d          # start the app again with the history in place
+```
+
+It prints how many medications and dose logs it found and copied. After it,
+retiring Turso is safe.
+
 ## Good-to-know
 
 - **Backing up your data:** everything precious is in the `meds-data` volume.

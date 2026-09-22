@@ -297,13 +297,18 @@ app.post('/api/reminder-status/clear', requireAuth, wrap(async (req, res) => {
 }));
 
 // ---- Stars & streak ----
+// A day counts as complete for the streak once MORE than 40% of active meds
+// are taken — she doesn't need everything every day. Keep in sync with
+// DAY_COMPLETE_THRESHOLD in public/js/app.js (used for the calendar star).
+const DAY_COMPLETE_THRESHOLD = 0.4;
+
 async function isDayComplete(dateStr, medIds) {
   if (!medIds.length) return false;
   const placeholders = medIds.map(() => '?').join(',');
   const row = await db
     .prepare(`SELECT COUNT(*) AS c FROM dose_logs WHERE date = ? AND taken = 1 AND medication_id IN (${placeholders})`)
     .get(dateStr, ...medIds);
-  return row.c >= medIds.length;
+  return row.c / medIds.length > DAY_COMPLETE_THRESHOLD;
 }
 
 app.get('/api/stats', requireAuth, wrap(async (req, res) => {

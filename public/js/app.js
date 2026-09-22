@@ -318,6 +318,11 @@
     }
   }
 
+  // A day counts as "complete" (gold star) once MORE than 40% of the meds are
+  // checked off — she doesn't need to take everything every day. Keep this in
+  // sync with DAY_COMPLETE_THRESHOLD in server/index.js (used for the streak).
+  const DAY_COMPLETE_THRESHOLD = 0.4;
+
   function dayStatus(dateStr) {
     if (!state.medications.length) return null;
     let takenCount = 0;
@@ -325,7 +330,7 @@
       if (state.doses[`${med.id}:${dateStr}`]) takenCount += 1;
     }
     if (takenCount === 0) return null;
-    if (takenCount === state.medications.length) return 'full';
+    if (takenCount / state.medications.length > DAY_COMPLETE_THRESHOLD) return 'full';
     return 'partial';
   }
 
