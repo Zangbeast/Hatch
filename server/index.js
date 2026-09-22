@@ -82,7 +82,9 @@ async function logEvent(type, message) {
 }
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  // Eastern time, so "today" matches the app's calendar and rolls over at
+  // local midnight rather than 8pm ET (UTC midnight).
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
 }
 
 // ---- Auth ----
@@ -363,7 +365,7 @@ db.init()
       }
     });
     if (process.env.ENABLE_AUTO_REMINDERS === 'true') {
-      require('./scheduler');
+      require('./scheduler').start();
     }
   })
   .catch((err) => {

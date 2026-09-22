@@ -7,7 +7,7 @@
     otherName: '',
     viewYear: new Date().getFullYear(),
     viewMonth: new Date().getMonth(), // 0-indexed
-    selectedDate: toDateStr(new Date()),
+    selectedDate: etToday(),
     medications: [],
     doses: {}, // `${medId}:${date}` -> taken (0/1)
   };
@@ -27,6 +27,12 @@
 
   function toDateStr(d) {
     return d.toISOString().slice(0, 10);
+  }
+
+  // "Today" in Eastern time, so the calendar's today and the dates doses are
+  // stored under stay consistent with the server (and don't flip at ~8pm ET).
+  function etToday() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
   }
 
   function pad2(n) {
@@ -397,7 +403,7 @@
     const firstDay = new Date(state.viewYear, state.viewMonth, 1);
     const daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
     const startOffset = firstDay.getDay();
-    const todayStr = toDateStr(new Date());
+    const todayStr = etToday();
 
     for (let i = 0; i < startOffset; i++) {
       const el = document.createElement('div');
