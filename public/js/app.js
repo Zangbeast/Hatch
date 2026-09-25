@@ -539,18 +539,22 @@
 
   // ---------- Period tracking ----------
   // Its own tab and its own calendar: every day is the same pink, and the
-  // days of a period are red. A period without an end date is "in progress"
-  // and shows red through today.
+  // days of a period are red. Two steps: tap the day it started, then (days
+  // later) tap the day it ended. Until the end is marked only the start day
+  // is red; once it's marked, the whole stretch fills in.
   const period = {
     list: [],
     year: Number(etToday().slice(0, 4)),
     month: Number(etToday().slice(5, 7)) - 1, // 0-indexed
-    selected: etToday(),
   };
 
   function fmtDay(dateStr, opts = { month: 'short', day: 'numeric' }) {
     const [y, m, d] = dateStr.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString(undefined, opts);
+  }
+
+  function fmtLong(dateStr) {
+    return fmtDay(dateStr, { weekday: 'long', month: 'long', day: 'numeric' });
   }
 
   function daysBetween(a, b) {
@@ -559,13 +563,19 @@
     return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
   }
 
-  function periodEnd(p) {
-    const today = etToday();
-    return p.end_date || (today > p.start_date ? today : p.start_date);
+  function periodLength(p) {
+    const n = daysBetween(p.start_date, p.end_date) + 1;
+    return `${n} day${n === 1 ? '' : 's'}`;
   }
 
+  // The period this day is shown red for (an unfinished one covers only its
+  // start day until the end is marked).
   function periodOn(dateStr) {
-    return period.list.find((p) => p.start_date <= dateStr && dateStr <= periodEnd(p));
+    return period.list.find((p) => p.start_date <= dateStr && dateStr <= (p.end_date || p.start_date));
+  }
+
+  function openPeriod() {
+    return period.list.find((p) => !p.end_date);
   }
 
   async function loadPeriodTab() {
@@ -574,8 +584,28 @@
     } catch (err) {
       toast(err.message);
     }
+    renderPeriodTab();
+  }
+
+  function renderPeriodTab() {
+    renderPeriodPrompt();
     renderPeriodCalendar();
-    renderPeriodPanel();
+  }
+
+  function renderPeriodPrompt() {
+    const open = openPeriod();
+    const finished = period.list.filter((p) => p.end_date);
+    const last = finished[finished.length - 1];
+    if (open) {
+      const day = daysBetween(open.start_date, etToday()) + 1;
+      $('#period-step').textContent = 'When it’s over, tap the day it ended ✔';
+      $('#period-status').textContent = `Started ${fmtLong(open.start_date)}${day > 0 ? ` — today is day ${day}` : ''}.`;
+    } else {
+      $('#period-step').textContent = 'Tap the day your period started 🩸';
+      $('#period-status').textContent = last
+        ? `Last period: ${fmtDay(last.start_date)} – ${fmtDay(last.end_date)} (${periodLength(last)}).`
+        : 'Nothing logged yet.';
+    }
   }
 
   function renderPeriodCalendar() {
@@ -604,104 +634,94 @@
       el.className = 'cal-day pcal';
       if (periodOn(dateStr)) el.classList.add('bleed');
       if (dateStr === todayStr) el.classList.add('today');
-      if (dateStr === period.selected) el.classList.add('selected');
       el.innerHTML = `<span class="cal-num">${day}</span>`;
-      el.addEventListener('click', () => {
-        period.selected = dateStr;
-        renderPeriodCalendar();
-        renderPeriodPanel();
-      });
+      el.addEventListener('click', () => openPeriodModal(dateStr));
       grid.appendChild(el);
     }
   }
 
-  function periodButton(label, className, onClick) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = className;
-    btn.textContent = label;
-    btn.addEventListener('click', onClick);
-    return btn;
+  function closePeriodModal() {
+    $('#period-modal').hidden = true;
   }
 
-  function renderPeriodPanel() {
-    const d = period.selected;
+  // The popup shown when a day is tapped: says what that day is and offers
+  // only the actions that make sense for it.
+  function openPeriodModal(d) {
     const today = etToday();
-    $('#period-day-title').textContent = fmtDay(d, { weekday: 'long', month: 'long', day: 'numeric' });
-
-    const open = period.list.find((p) => !p.end_date);
-    const finished = period.list.filter((p) => p.end_date);
-    const last = finished[finished.length - 1];
-    const status = $('#period-status');
-    if (open) {
-      status.textContent = `Period in progress since ${fmtDay(open.start_date)} (day ${daysBetween(open.start_date, today) + 1}). Tap the day it ended.`;
-    } else if (last) {
-      const len = daysBetween(last.start_date, last.end_date) + 1;
-      status.textContent = `Last period: ${fmtDay(last.start_date)} – ${fmtDay(last.end_date)} (${len} day${len === 1 ? '' : 's'}).`;
-    } else {
-      status.textContent = 'No periods logged yet. Tap the day one started.';
-    }
-
-    const actions = $('#period-actions');
+    const open = openPeriod();
+    const on = period.list.find((p) => p.end_date && p.start_date <= d && d <= p.end_date);
+    const actions = $('#period-modal-actions');
     actions.innerHTML = '';
+    $('#period-modal-title').textContent = fmtLong(d);
+    const setText = (t) => ($('#period-modal-text').textContent = t);
+
+    const add = (label, className, onClick) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = className;
+      btn.textContent = label;
+      btn.addEventListener('click', () => onClick(btn));
+      actions.appendChild(btn);
+    };
+    const save = (label, request, message) => add(label, 'primary-btn', () => savePeriod(request, message));
+    const patch = (id, body) => () => api(`/api/periods/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+    // Removing takes two taps so it can't happen by accident.
+    const remove = (label, id, message) =>
+      add(label, 'ghost-btn', (btn) => {
+        if (!btn.dataset.armed) {
+          btn.dataset.armed = '1';
+          btn.textContent = 'Tap again to remove';
+          return;
+        }
+        savePeriod(() => api(`/api/periods/${id}`, { method: 'DELETE' }), message);
+      });
 
     if (d > today) {
-      actions.innerHTML = '<p class="muted">You can only log today or earlier.</p>';
-      return;
-    }
-
-    const on = periodOn(d);
-    if (on) {
-      if (on.end_date !== d) {
-        actions.appendChild(
-          periodButton('✔ Period ended this day', 'primary-btn', () =>
-            savePeriod(() => api(`/api/periods/${on.id}`, { method: 'PATCH', body: JSON.stringify({ end_date: d }) }), 'Got it — period ended 💗')
-          )
+      setText('That day hasn’t happened yet — tap it once it has 💗');
+    } else if (open && d === open.start_date) {
+      setText('Your period started this day. When it’s over, tap the day it ended.');
+      remove('Remove this start day', open.id, 'Start day removed');
+    } else if (on) {
+      setText(`Period: ${fmtDay(on.start_date)} – ${fmtDay(on.end_date)} (${periodLength(on)}).`);
+      if (d !== on.start_date) save('Make this the start day', patch(on.id, { start_date: d }), 'Start day changed 💗');
+      if (d !== on.end_date) save('Make this the end day', patch(on.id, { end_date: d }), 'End day changed 💗');
+      remove('Remove this period', on.id, 'Period removed');
+    } else if (open && d > open.start_date) {
+      setText(`Your period started ${fmtLong(open.start_date)}. Did it end this day?`);
+      save('✔ Yes — it ended this day', patch(open.id, { end_date: d }), 'Period logged 💗');
+    } else if (open) {
+      // A day before the current period's start.
+      setText(`Your current period is marked as starting ${fmtLong(open.start_date)}.`);
+      save('🩸 It actually started this day', patch(open.id, { start_date: d }), 'Start day changed 💗');
+    } else {
+      setText('Did your period start this day?');
+      save('🩸 Yes — it started this day', () => api('/api/periods', { method: 'POST', body: JSON.stringify({ start_date: d }) }), 'Got it — tap the day it ends later 💗');
+      // Tapped a few days after the last period? Maybe it just ran longer.
+      const before = period.list.filter((p) => p.end_date && p.end_date < d).pop();
+      if (before && daysBetween(before.end_date, d) <= 7) {
+        add(`No — the ${fmtDay(before.start_date)} period ended this day`, 'ghost-btn', () =>
+          savePeriod(patch(before.id, { end_date: d }), 'End day changed 💗')
         );
       }
-      actions.appendChild(
-        periodButton('Remove this period', 'ghost-btn', () => {
-          if (!confirm(`Remove the period that started ${fmtDay(on.start_date)}?`)) return;
-          savePeriod(() => api(`/api/periods/${on.id}`, { method: 'DELETE' }), 'Period removed');
-        })
-      );
-      return;
     }
-
-    if (open && d < open.start_date) {
-      actions.appendChild(
-        periodButton('🩸 It actually started this day', 'primary-btn', () =>
-          savePeriod(() => api(`/api/periods/${open.id}`, { method: 'PATCH', body: JSON.stringify({ start_date: d }) }), 'Start date updated 💗')
-        )
-      );
-      return;
-    }
-
-    actions.appendChild(
-      periodButton('🩸 Period started this day', 'primary-btn', () =>
-        savePeriod(() => api('/api/periods', { method: 'POST', body: JSON.stringify({ start_date: d }) }), 'Period started — take it easy 💗')
-      )
-    );
-
-    // Tapped a day or few after a finished period? Offer to stretch it.
-    const before = finished.filter((p) => p.end_date < d).pop();
-    if (before && daysBetween(before.end_date, d) <= 7) {
-      actions.appendChild(
-        periodButton(`Extend the ${fmtDay(before.start_date)} period to end this day`, 'ghost-btn', () =>
-          savePeriod(() => api(`/api/periods/${before.id}`, { method: 'PATCH', body: JSON.stringify({ end_date: d }) }), 'Period updated 💗')
-        )
-      );
-    }
+    add(d > today ? 'OK' : 'Cancel', 'ghost-btn', closePeriodModal);
+    $('#period-modal').hidden = false;
   }
 
+  $('#period-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'period-modal') closePeriodModal();
+  });
+
   async function savePeriod(request, message) {
+    $$('#period-modal-actions button').forEach((b) => (b.disabled = true));
     try {
       await request();
       period.list = await api('/api/periods');
-      renderPeriodCalendar();
-      renderPeriodPanel();
+      closePeriodModal();
+      renderPeriodTab();
       toast(message);
     } catch (err) {
+      $$('#period-modal-actions button').forEach((b) => (b.disabled = false));
       toast(err.message);
     }
   }

@@ -134,6 +134,10 @@
 
     <!-- Period tab -->
     <div id="tab-period" class="tab-panel" hidden>
+      <div class="card period-prompt">
+        <p id="period-step" class="period-step"></p>
+        <p id="period-status" class="muted"></p>
+      </div>
       <div class="card">
         <div class="calendar-header">
           <button id="period-prev-month" class="ghost-btn" aria-label="Previous month">‹</button>
@@ -144,12 +148,6 @@
         <div class="cal-legend">
           <span class="cal-legend-item"><span class="cal-legend-swatch period"></span>Period</span>
         </div>
-      </div>
-
-      <div class="card">
-        <h3 id="period-day-title">Today</h3>
-        <p id="period-status" class="muted"></p>
-        <div id="period-actions" class="period-actions"></div>
       </div>
     </div>
 
@@ -202,6 +200,16 @@
         <button id="reminder-yes-btn" class="primary-btn">✅ Yes, I took them</button>
         <button id="reminder-no-btn" class="ghost-btn">Not yet</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Period day popup: opens when a day on the Period calendar is tapped -->
+  <div id="period-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <div class="modal-emoji">🩸</div>
+      <h3 id="period-modal-title"></h3>
+      <p class="muted" id="period-modal-text"></p>
+      <div class="modal-actions" id="period-modal-actions"></div>
     </div>
   </div>
 

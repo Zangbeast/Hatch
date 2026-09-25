@@ -347,13 +347,12 @@ app.get('/api/stats', requireAuth, wrap(async (req, res) => {
 // ---- Period tracking ----
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// Would the range [start, end] overlap any other period? An in-progress period
-// (no end yet) is treated as running through today.
+// Would the range [start, end] overlap any other period? An unfinished period
+// (no end yet) only covers its start day, matching what the calendar shows.
 async function periodOverlaps(start, end, ignoreId) {
-  const today = todayStr();
   const others = await db.prepare('SELECT * FROM periods WHERE id != ?').all(ignoreId || 0);
-  const myEnd = end || today;
-  return others.some((p) => p.start_date <= myEnd && (p.end_date || today) >= start);
+  const myEnd = end || start;
+  return others.some((p) => p.start_date <= myEnd && (p.end_date || p.start_date) >= start);
 }
 
 app.get('/api/periods', requireAuth, wrap(async (req, res) => {
