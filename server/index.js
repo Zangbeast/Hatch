@@ -344,6 +344,61 @@ app.get('/api/stats', requireAuth, wrap(async (req, res) => {
   res.json({ totalStars, streak });
 }));
 
+// ---- Period tracking ----
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Would the range [start, end] overlap any other period? An in-progress period
+// (no end yet) is treated as running through today.
+async function periodOverlaps(start, end, ignoreId) {
+  const today = todayStr();
+  const others = await db.prepare('SELECT * FROM periods WHERE id != ?').all(ignoreId || 0);
+  const myEnd = end || today;
+  return others.some((p) => p.start_date <= myEnd && (p.end_date || today) >= start);
+}
+
+app.get('/api/periods', requireAuth, wrap(async (req, res) => {
+  res.json(await db.prepare('SELECT * FROM periods ORDER BY start_date').all());
+}));
+
+// Start a new period on the given day (it stays open until an end is set).
+app.post('/api/periods', requireAuth, wrap(async (req, res) => {
+  const { start_date } = req.body || {};
+  if (!DATE_RE.test(start_date || '')) return res.status(400).json({ error: 'start_date must be YYYY-MM-DD' });
+  if (start_date > todayStr()) return res.status(400).json({ error: "Can't start a period in the future" });
+  const open = await db.prepare('SELECT id FROM periods WHERE end_date IS NULL').get();
+  if (open) return res.status(400).json({ error: 'A period is already in progress — mark when it ended first' });
+  if (await periodOverlaps(start_date, start_date)) {
+    return res.status(400).json({ error: 'That day is already part of a logged period' });
+  }
+  const info = await db.prepare('INSERT INTO periods (start_date) VALUES (?)').run(start_date);
+  res.json(await db.prepare('SELECT * FROM periods WHERE id = ?').get(info.lastInsertRowid));
+}));
+
+// Change a period's start and/or end day.
+app.patch('/api/periods/:id', requireAuth, wrap(async (req, res) => {
+  const period = await db.prepare('SELECT * FROM periods WHERE id = ?').get(req.params.id);
+  if (!period) return res.status(404).json({ error: 'Period not found' });
+  const body = req.body || {};
+  const start = body.start_date !== undefined ? body.start_date : period.start_date;
+  const end = body.end_date !== undefined ? body.end_date : period.end_date;
+  if (!DATE_RE.test(start) || (end !== null && !DATE_RE.test(end))) {
+    return res.status(400).json({ error: 'Dates must be YYYY-MM-DD' });
+  }
+  const today = todayStr();
+  if (start > today || (end && end > today)) return res.status(400).json({ error: "Can't log future days" });
+  if (end && end < start) return res.status(400).json({ error: 'The end day has to be on or after the start day' });
+  if (await periodOverlaps(start, end, period.id)) {
+    return res.status(400).json({ error: 'That would overlap another logged period' });
+  }
+  await db.prepare('UPDATE periods SET start_date = ?, end_date = ? WHERE id = ?').run(start, end, period.id);
+  res.json(await db.prepare('SELECT * FROM periods WHERE id = ?').get(period.id));
+}));
+
+app.delete('/api/periods/:id', requireAuth, wrap(async (req, res) => {
+  await db.prepare('DELETE FROM periods WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+}));
+
 // ---- Activity log ----
 app.get('/api/events', requireAuth, wrap(async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 20, 100);

@@ -16,6 +16,7 @@
   --cal-empty: #fbdcec;      /* light pink — nothing done yet */
   --cal-morning: #ef5aa4;    /* medium pink — morning done */
   --cal-evening: #c3b4f6;    /* light purple — evening done */
+  --period-red: #e0344f;     /* period calendar — bleeding days */
   color-scheme: light;
 }
 
@@ -182,13 +183,14 @@ button { font-family: inherit; }
 .tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
 .tab-btn {
   flex: 1;
-  padding: 0.6rem;
+  min-width: 0;
+  padding: 0.55rem 0.2rem;
   border-radius: 14px;
   border: 2px solid var(--pink-soft);
   background: var(--card);
   color: var(--muted);
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 700;
   font-family: 'Quicksand', sans-serif;
 }
@@ -268,6 +270,15 @@ button { font-family: inherit; }
 }
 .cal-legend-swatch.morning { background: var(--cal-morning); }
 .cal-legend-swatch.evening { background: var(--cal-evening); }
+.cal-legend-swatch.period { background: var(--period-red); }
+
+/* Period calendar: every day the same pink, bleeding days red */
+.cal-day.pcal { background: var(--cal-empty); }
+.cal-day.pcal.bleed { background: var(--period-red); }
+.cal-day.pcal.bleed .cal-num { color: #fff; text-shadow: none; }
+.period-actions { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
+.period-actions button { width: 100%; }
+.period-actions p { margin: 0; }
 
 /* Day detail / med checklist */
 .med-checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }

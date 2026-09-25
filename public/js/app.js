@@ -196,6 +196,7 @@
       btn.classList.add('active');
       $$('.tab-panel').forEach((p) => (p.hidden = true));
       $(`#tab-${btn.dataset.tab}`).hidden = false;
+      if (btn.dataset.tab === 'period') loadPeriodTab();
       if (btn.dataset.tab === 'activity') loadActivity();
       if (btn.dataset.tab === 'settings') loadSettingsTab();
     });
@@ -384,6 +385,15 @@
     };
   }
 
+  function appendWeekdayRow(grid) {
+    ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach((d) => {
+      const el = document.createElement('div');
+      el.className = 'cal-dow';
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+  }
+
   function renderCalendar() {
     const grid = $('#calendar-grid');
     grid.innerHTML = '';
@@ -393,12 +403,7 @@
     });
     $('#month-label').textContent = monthLabel;
 
-    ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach((d) => {
-      const el = document.createElement('div');
-      el.className = 'cal-dow';
-      el.textContent = d;
-      grid.appendChild(el);
-    });
+    appendWeekdayRow(grid);
 
     const firstDay = new Date(state.viewYear, state.viewMonth, 1);
     const daysInMonth = new Date(state.viewYear, state.viewMonth + 1, 0).getDate();
@@ -530,6 +535,193 @@
     } finally {
       btn.disabled = false;
     }
+  });
+
+  // ---------- Period tracking ----------
+  // Its own tab and its own calendar: every day is the same pink, and the
+  // days of a period are red. A period without an end date is "in progress"
+  // and shows red through today.
+  const period = {
+    list: [],
+    year: Number(etToday().slice(0, 4)),
+    month: Number(etToday().slice(5, 7)) - 1, // 0-indexed
+    selected: etToday(),
+  };
+
+  function fmtDay(dateStr, opts = { month: 'short', day: 'numeric' }) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, opts);
+  }
+
+  function daysBetween(a, b) {
+    const [ay, am, ad] = a.split('-').map(Number);
+    const [by, bm, bd] = b.split('-').map(Number);
+    return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+  }
+
+  function periodEnd(p) {
+    const today = etToday();
+    return p.end_date || (today > p.start_date ? today : p.start_date);
+  }
+
+  function periodOn(dateStr) {
+    return period.list.find((p) => p.start_date <= dateStr && dateStr <= periodEnd(p));
+  }
+
+  async function loadPeriodTab() {
+    try {
+      period.list = await api('/api/periods');
+    } catch (err) {
+      toast(err.message);
+    }
+    renderPeriodCalendar();
+    renderPeriodPanel();
+  }
+
+  function renderPeriodCalendar() {
+    const grid = $('#period-grid');
+    grid.innerHTML = '';
+    $('#period-month-label').textContent = new Date(period.year, period.month, 1).toLocaleDateString(undefined, {
+      month: 'long',
+      year: 'numeric',
+    });
+
+    appendWeekdayRow(grid);
+
+    const startOffset = new Date(period.year, period.month, 1).getDay();
+    const daysInMonth = new Date(period.year, period.month + 1, 0).getDate();
+    const todayStr = etToday();
+
+    for (let i = 0; i < startOffset; i++) {
+      const el = document.createElement('div');
+      el.className = 'cal-day empty';
+      grid.appendChild(el);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${period.year}-${pad2(period.month + 1)}-${pad2(day)}`;
+      const el = document.createElement('div');
+      el.className = 'cal-day pcal';
+      if (periodOn(dateStr)) el.classList.add('bleed');
+      if (dateStr === todayStr) el.classList.add('today');
+      if (dateStr === period.selected) el.classList.add('selected');
+      el.innerHTML = `<span class="cal-num">${day}</span>`;
+      el.addEventListener('click', () => {
+        period.selected = dateStr;
+        renderPeriodCalendar();
+        renderPeriodPanel();
+      });
+      grid.appendChild(el);
+    }
+  }
+
+  function periodButton(label, className, onClick) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = className;
+    btn.textContent = label;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  function renderPeriodPanel() {
+    const d = period.selected;
+    const today = etToday();
+    $('#period-day-title').textContent = fmtDay(d, { weekday: 'long', month: 'long', day: 'numeric' });
+
+    const open = period.list.find((p) => !p.end_date);
+    const finished = period.list.filter((p) => p.end_date);
+    const last = finished[finished.length - 1];
+    const status = $('#period-status');
+    if (open) {
+      status.textContent = `Period in progress since ${fmtDay(open.start_date)} (day ${daysBetween(open.start_date, today) + 1}). Tap the day it ended.`;
+    } else if (last) {
+      const len = daysBetween(last.start_date, last.end_date) + 1;
+      status.textContent = `Last period: ${fmtDay(last.start_date)} – ${fmtDay(last.end_date)} (${len} day${len === 1 ? '' : 's'}).`;
+    } else {
+      status.textContent = 'No periods logged yet. Tap the day one started.';
+    }
+
+    const actions = $('#period-actions');
+    actions.innerHTML = '';
+
+    if (d > today) {
+      actions.innerHTML = '<p class="muted">You can only log today or earlier.</p>';
+      return;
+    }
+
+    const on = periodOn(d);
+    if (on) {
+      if (on.end_date !== d) {
+        actions.appendChild(
+          periodButton('✔ Period ended this day', 'primary-btn', () =>
+            savePeriod(() => api(`/api/periods/${on.id}`, { method: 'PATCH', body: JSON.stringify({ end_date: d }) }), 'Got it — period ended 💗')
+          )
+        );
+      }
+      actions.appendChild(
+        periodButton('Remove this period', 'ghost-btn', () => {
+          if (!confirm(`Remove the period that started ${fmtDay(on.start_date)}?`)) return;
+          savePeriod(() => api(`/api/periods/${on.id}`, { method: 'DELETE' }), 'Period removed');
+        })
+      );
+      return;
+    }
+
+    if (open && d < open.start_date) {
+      actions.appendChild(
+        periodButton('🩸 It actually started this day', 'primary-btn', () =>
+          savePeriod(() => api(`/api/periods/${open.id}`, { method: 'PATCH', body: JSON.stringify({ start_date: d }) }), 'Start date updated 💗')
+        )
+      );
+      return;
+    }
+
+    actions.appendChild(
+      periodButton('🩸 Period started this day', 'primary-btn', () =>
+        savePeriod(() => api('/api/periods', { method: 'POST', body: JSON.stringify({ start_date: d }) }), 'Period started — take it easy 💗')
+      )
+    );
+
+    // Tapped a day or few after a finished period? Offer to stretch it.
+    const before = finished.filter((p) => p.end_date < d).pop();
+    if (before && daysBetween(before.end_date, d) <= 7) {
+      actions.appendChild(
+        periodButton(`Extend the ${fmtDay(before.start_date)} period to end this day`, 'ghost-btn', () =>
+          savePeriod(() => api(`/api/periods/${before.id}`, { method: 'PATCH', body: JSON.stringify({ end_date: d }) }), 'Period updated 💗')
+        )
+      );
+    }
+  }
+
+  async function savePeriod(request, message) {
+    try {
+      await request();
+      period.list = await api('/api/periods');
+      renderPeriodCalendar();
+      renderPeriodPanel();
+      toast(message);
+    } catch (err) {
+      toast(err.message);
+    }
+  }
+
+  $('#period-prev-month').addEventListener('click', () => {
+    period.month -= 1;
+    if (period.month < 0) {
+      period.month = 11;
+      period.year -= 1;
+    }
+    renderPeriodCalendar();
+  });
+
+  $('#period-next-month').addEventListener('click', () => {
+    period.month += 1;
+    if (period.month > 11) {
+      period.month = 0;
+      period.year += 1;
+    }
+    renderPeriodCalendar();
   });
 
   // ---------- Activity ----------

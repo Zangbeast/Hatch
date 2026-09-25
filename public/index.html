@@ -77,7 +77,8 @@
 
     <nav class="tabs">
       <button class="tab-btn active" data-tab="calendar">Calendar</button>
-      <button class="tab-btn" data-tab="medications">Medications</button>
+      <button class="tab-btn" data-tab="medications">Meds</button>
+      <button class="tab-btn" data-tab="period">Period</button>
       <button class="tab-btn" data-tab="activity">Activity</button>
       <button class="tab-btn" data-tab="settings">Settings</button>
     </nav>
@@ -128,6 +129,27 @@
       <div class="card">
         <h3>Current medications</h3>
         <ul id="med-list" class="med-manage-list"></ul>
+      </div>
+    </div>
+
+    <!-- Period tab -->
+    <div id="tab-period" class="tab-panel" hidden>
+      <div class="card">
+        <div class="calendar-header">
+          <button id="period-prev-month" class="ghost-btn" aria-label="Previous month">‹</button>
+          <h2 id="period-month-label"></h2>
+          <button id="period-next-month" class="ghost-btn" aria-label="Next month">›</button>
+        </div>
+        <div class="calendar-grid" id="period-grid"></div>
+        <div class="cal-legend">
+          <span class="cal-legend-item"><span class="cal-legend-swatch period"></span>Period</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 id="period-day-title">Today</h3>
+        <p id="period-status" class="muted"></p>
+        <div id="period-actions" class="period-actions"></div>
       </div>
     </div>
 

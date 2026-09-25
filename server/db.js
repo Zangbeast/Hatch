@@ -50,6 +50,14 @@ const SCHEMA = `
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+
+  -- Period tracking: end_date stays NULL while a period is in progress.
+  CREATE TABLE IF NOT EXISTS periods (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `;
 
 async function init() {
